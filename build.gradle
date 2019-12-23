@@ -1,0 +1,53 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.0.9.RELEASE")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+bootJar {
+    baseName = 'gs-spring-boot'
+    version = '0.1.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+configurations {
+    /* Exclude to use log4j instead */
+    compile.exclude module: 'spring-boot-starter-logging'
+
+    /* Exclude to use jetty instead */
+    compile.exclude module: 'spring-boot-starter-tomcat'
+
+    /* Exclude to use jetty instead */
+    compile.exclude module: 'tomcat-jdbc'
+}
+
+dependencies {
+    /* Lombok because it's great */
+    compile("org.projectlombok:lombok")
+
+    /* Spring Boot Starter */
+    compile("org.springframework.boot:spring-boot-starter")
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-jetty")
+
+    /* Log4j instead of logback */
+    compile("org.springframework.boot:spring-boot-starter-log4j2")
+
+    /* Test dependencies */
+    testCompile("junit:junit")
+}
