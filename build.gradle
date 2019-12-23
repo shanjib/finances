@@ -49,5 +49,6 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-log4j2")
 
     /* Test dependencies */
+    testCompile("org.springframework.boot:spring-boot-starter-test")
     testCompile("junit:junit")
 }
