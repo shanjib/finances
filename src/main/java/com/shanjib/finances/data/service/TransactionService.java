@@ -30,7 +30,11 @@ public class TransactionService {
     return transactionRepo.findByAccountName(accountName);
   }
 
-  public boolean saveTransaction(TransactionRequestBody requestBody) {
+  public Transaction saveTransaction(TransactionRequestBody requestBody) {
+    if (requestBody.isNullOrEmpty()) {
+      return null;
+    }
+
     Transaction transaction = Transaction.builder()
         .accountName(requestBody.getAccountName())
         .date(LocalDate.parse(requestBody.getDate()))
@@ -38,6 +42,6 @@ public class TransactionService {
         .amount(new BigDecimal(requestBody.getAmount()))
         .build();
     transactionRepo.save(transaction);
-    return true;
+    return transaction;
   }
 }

@@ -35,4 +35,8 @@ public class AccountService {
     accountRepo.save(newAccount);
     return true;
   }
+
+  public void save(final Account account) {
+    accountRepo.save(account);
+  }
 }
