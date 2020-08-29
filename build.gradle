@@ -40,6 +40,7 @@ configurations {
 dependencies {
     /* Lombok because it's great */
     compile("org.projectlombok:lombok")
+    compile("com.google.guava:guava:18.0")
 
     /* Spring Boot Starter */
     compile("org.springframework.boot:spring-boot-starter")
@@ -52,6 +53,8 @@ dependencies {
     compile("com.h2database:h2")
     compile("javax.xml.bind:jaxb-api")
     compile("org.javassist:javassist:3.23.1-GA")
+
+    compile("org.springframework.boot:spring-boot-starter-thymeleaf")
 
     /* Log4j instead of logback */
     compile("org.springframework.boot:spring-boot-starter-log4j2")
