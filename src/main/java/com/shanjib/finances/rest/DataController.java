@@ -7,6 +7,7 @@ import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
 import com.shanjib.finances.data.service.AccountingService;
 import com.shanjib.finances.data.service.TransactionService;
+import com.shanjib.finances.rest.model.AccountRequestBody;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -24,17 +25,22 @@ public class DataController {
   private TransactionService transactionService;
 
   @RequestMapping(path = "/account/add")
-  private String addAccount(@RequestParam final String name) {
-    if (accountService.addAccount(name)) {
-      return "Success";
+  private String addAccount(@RequestBody final AccountRequestBody body) {
+    if (accountService.addAccount(body)) {
+      return "Successfully created account " + body.getName();
     } else {
-      return "Failure";
+      return "Failed to create account " + body.toString();
     }
   }
 
   @RequestMapping(path = "/account/get")
-  private Account getAccount(@RequestParam final String name) {
+  private List<Account> getAccount(@RequestParam final String name) {
     return accountService.getAccount(name);
+  }
+
+  @RequestMapping(path = "/account/get/month")
+  private List<Account> getAccountForMonth(@RequestParam final String name, @RequestParam final String month, @RequestParam final Integer year) {
+    return accountService.getAccountForMonth(name, month, year);
   }
 
   @RequestMapping(path = "/transaction/post")

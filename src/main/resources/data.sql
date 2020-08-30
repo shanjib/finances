@@ -1,4 +1,4 @@
-insert into account(name, balance) values
-('American Express', 0),
-('Discover', 0)
+insert into account(name, date, balance) values
+('American Express', '2020-01-01', 0),
+('Discover', '2020-01-01', 0)
 ;

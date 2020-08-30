@@ -3,11 +3,10 @@ package com.shanjib.finances.data.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
-@Builder
+//@Builder
 public class Accounting {
 
   private String name;

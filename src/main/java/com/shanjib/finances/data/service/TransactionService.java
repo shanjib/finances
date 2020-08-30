@@ -6,7 +6,6 @@ import com.shanjib.finances.data.repo.TransactionRepo;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class TransactionService {
 
-  private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE;
   private final TransactionRepo transactionRepo;
 
   public List<Transaction> getTransactionsByAccount(String accountName) {
