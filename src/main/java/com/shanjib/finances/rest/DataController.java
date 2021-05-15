@@ -22,7 +22,7 @@ public class DataController {
   private TransactionService transactionService;
 
   @RequestMapping(path = "/account/add")
-  private String addAccount(@RequestBody final AccountRequestBody body) {
+  public String addAccount(@RequestBody final AccountRequestBody body) {
     if (accountService.addAccount(body)) {
       return "Successfully created account " + body.getName();
     } else {
@@ -31,17 +31,17 @@ public class DataController {
   }
 
   @RequestMapping(path = "/account/get")
-  private Account getAccount(@RequestParam final String name) {
+  public Account getAccount(@RequestParam final String name) {
     return accountService.getAccount(name);
   }
 
   @RequestMapping(path = "/account/get/balance")
-  private BigDecimal getAccountBalance(@RequestParam final String name) {
+  public BigDecimal getAccountBalance(@RequestParam final String name) {
     return accountService.getAccountBalance(name);
   }
 
   @RequestMapping(path = "/transaction/post")
-  private String addTransaction(@RequestBody final TransactionRequestBody body) {
+  public String addTransaction(@RequestBody final TransactionRequestBody body) {
     if (transactionService.addTransaction(body)) {
       return "Successfully added transaction for " + body.getDescription();
     } else {
@@ -50,7 +50,7 @@ public class DataController {
   }
 
   @RequestMapping(path = "/transaction/get")
-  private List<Transaction> getTransactions(@RequestParam final String name) {
+  public List<Transaction> getTransactions(@RequestParam final String name) {
     return transactionService.getTransactionsByAccount(name);
   }
 }
