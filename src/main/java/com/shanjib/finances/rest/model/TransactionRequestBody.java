@@ -10,7 +10,6 @@ public class TransactionRequestBody {
   private String date;
   private String description;
   private String amount;
-  private String type;
 
   public boolean isNullOrEmpty() {
     return StringUtils.isNullOrEmpty(accountName)

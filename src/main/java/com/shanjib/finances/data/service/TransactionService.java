@@ -1,6 +1,7 @@
 package com.shanjib.finances.data.service;
 
 import com.google.common.collect.Lists;
+import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.repo.TransactionRepo;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class TransactionService {
 
   private final TransactionRepo transactionRepo;
+  private final AccountService accountService;
 
   public List<Transaction> getTransactionsByAccount(String accountName) {
     if (StringUtils.isNullOrEmpty(accountName)) {
@@ -33,7 +35,13 @@ public class TransactionService {
       return null;
     }
 
+    Account account = accountService.getAccount(requestBody.getAccountName());
+    if (account == null) {
+      return null;
+    }
+
     Transaction transaction = Transaction.builder()
+        .accountId(account.getId())
         .accountName(requestBody.getAccountName())
         .date(LocalDate.parse(requestBody.getDate()))
         .description(requestBody.getDescription())

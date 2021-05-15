@@ -5,7 +5,6 @@ import static java.util.Objects.isNull;
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
-import com.shanjib.finances.data.service.AccountingService;
 import com.shanjib.finances.data.service.TransactionService;
 import com.shanjib.finances.rest.model.AccountRequestBody;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DataController {
 
-  private AccountingService accountingService;
   private AccountService accountService;
   private TransactionService transactionService;
 
@@ -34,13 +32,8 @@ public class DataController {
   }
 
   @RequestMapping(path = "/account/get")
-  private List<Account> getAccount(@RequestParam final String name) {
+  private Account getAccount(@RequestParam final String name) {
     return accountService.getAccount(name);
-  }
-
-  @RequestMapping(path = "/account/get/month")
-  private List<Account> getAccountForMonth(@RequestParam final String name, @RequestParam final String month, @RequestParam final Integer year) {
-    return accountService.getAccountForMonth(name, month, year);
   }
 
   @RequestMapping(path = "/transaction/post")
@@ -48,7 +41,6 @@ public class DataController {
     Transaction transaction = transactionService.saveTransaction(body);
 
     if (!isNull(transaction)) {
-      accountingService.updateBalanceBasedOnTransaction(transaction);
       return "Success";
     } else {
       return "Failure";

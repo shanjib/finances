@@ -20,6 +20,7 @@ public class Transaction {
   @Id
   @GeneratedValue
   private long id;
+  private long accountId;
   private String accountName;
   private LocalDate date;
   private String description;
