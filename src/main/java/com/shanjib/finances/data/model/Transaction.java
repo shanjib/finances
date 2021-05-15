@@ -9,6 +9,7 @@ import javax.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NonNull;
 
 @AllArgsConstructor
 @Builder
@@ -22,7 +23,11 @@ public class Transaction {
   private long id;
   private long accountId;
   private String accountName;
+  @NonNull
   private LocalDate date;
   private String description;
+  @NonNull
   private BigDecimal amount;
+  @NonNull
+  private CreditDebitCode creditDebitCode;
 }

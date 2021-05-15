@@ -2,6 +2,7 @@ package com.shanjib.finances.data.service;
 
 import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
+import com.shanjib.finances.data.model.CreditDebitCode;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.repo.TransactionRepo;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
@@ -30,24 +31,25 @@ public class TransactionService {
     return transactionRepo.findByAccountName(accountName);
   }
 
-  public Transaction saveTransaction(TransactionRequestBody requestBody) {
-    if (requestBody.isNullOrEmpty()) {
-      return null;
+  public boolean addTransaction(TransactionRequestBody body) {
+    if (body.isNullOrEmpty()) {
+      return false;
     }
 
-    Account account = accountService.getAccount(requestBody.getAccountName());
+    Account account = accountService.getAccount(body.getAccountName());
     if (account == null) {
-      return null;
+      return false;
     }
 
     Transaction transaction = Transaction.builder()
         .accountId(account.getId())
-        .accountName(requestBody.getAccountName())
-        .date(LocalDate.parse(requestBody.getDate()))
-        .description(requestBody.getDescription())
-        .amount(new BigDecimal(requestBody.getAmount()))
+        .accountName(body.getAccountName())
+        .date(LocalDate.parse(body.getDate()))
+        .description(body.getDescription())
+        .amount(new BigDecimal(body.getAmount()))
+        .creditDebitCode(CreditDebitCode.getEnum(body.getCreditDebit()))
         .build();
     transactionRepo.save(transaction);
-    return transaction;
+    return true;
   }
 }

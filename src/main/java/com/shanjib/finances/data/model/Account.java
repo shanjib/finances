@@ -22,7 +22,7 @@ public class Account implements Serializable {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private long id;
   private String name;
-  private BigDecimal beginningBalance;
+  private BigDecimal initialBalance;
   @OneToMany(mappedBy = "accountId")
   private Set<Transaction> transactions;
 }

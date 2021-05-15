@@ -1,13 +1,12 @@
 package com.shanjib.finances.rest;
 
-import static java.util.Objects.isNull;
-
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
 import com.shanjib.finances.data.service.TransactionService;
 import com.shanjib.finances.rest.model.AccountRequestBody;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,14 +35,17 @@ public class DataController {
     return accountService.getAccount(name);
   }
 
+  @RequestMapping(path = "/account/get/balance")
+  private BigDecimal getAccountBalance(@RequestParam final String name) {
+    return accountService.getAccountBalance(name);
+  }
+
   @RequestMapping(path = "/transaction/post")
   private String addTransaction(@RequestBody final TransactionRequestBody body) {
-    Transaction transaction = transactionService.saveTransaction(body);
-
-    if (!isNull(transaction)) {
-      return "Success";
+    if (transactionService.addTransaction(body)) {
+      return "Successfully added transaction for " + body.getDescription();
     } else {
-      return "Failure";
+      return "Failed to add transaction to account " + body.getAccountName();
     }
   }
 
