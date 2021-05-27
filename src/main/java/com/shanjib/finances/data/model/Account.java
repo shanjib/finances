@@ -2,11 +2,12 @@ package com.shanjib.finances.data.model;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.List;
-import javax.persistence.ElementCollection;
+import java.util.Set;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,8 +19,11 @@ import lombok.NoArgsConstructor;
 public class Account implements Serializable {
 
   @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private long id;
   private String name;
-  private BigDecimal balance;
-  @ElementCollection(fetch = FetchType.EAGER)
-  private List<Transaction> transactions;
+  private BigDecimal initialBalance;
+  private BigDecimal currentBalance = BigDecimal.ZERO;
+  @OneToMany(mappedBy = "accountId")
+  private Set<Transaction> transactions;
 }

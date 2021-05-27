@@ -1,13 +1,12 @@
 package com.shanjib.finances.rest;
 
-import static java.util.Objects.isNull;
-
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
-import com.shanjib.finances.data.service.AccountingService;
 import com.shanjib.finances.data.service.TransactionService;
+import com.shanjib.finances.rest.model.AccountRequestBody;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,38 +18,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DataController {
 
-  private AccountingService accountingService;
   private AccountService accountService;
   private TransactionService transactionService;
 
   @RequestMapping(path = "/account/add")
-  private String addAccount(@RequestParam final String name) {
-    if (accountService.addAccount(name)) {
-      return "Success";
+  public String addAccount(@RequestBody final AccountRequestBody body) {
+    if (accountService.addAccount(body)) {
+      return "Successfully created account " + body.getName();
     } else {
-      return "Failure";
+      return "Failed to create account " + body.toString();
     }
   }
 
   @RequestMapping(path = "/account/get")
-  private Account getAccount(@RequestParam final String name) {
+  public Account getAccount(@RequestParam final String name) {
     return accountService.getAccount(name);
   }
 
-  @RequestMapping(path = "/transaction/post")
-  private String addTransaction(@RequestBody final TransactionRequestBody body) {
-    Transaction transaction = transactionService.saveTransaction(body);
+  @RequestMapping(path = "/account/get/balance")
+  public BigDecimal getAccountBalance(@RequestParam final String name) {
+    return accountService.getBalance(name);
+  }
 
-    if (!isNull(transaction)) {
-      accountingService.updateBalanceBasedOnTransaction(transaction);
-      return "Success";
+  @RequestMapping(path = "/transaction/post")
+  public String addTransaction(final TransactionRequestBody body) {
+    if (transactionService.addTransaction(body)) {
+      return "Successfully added transaction for " + body.getDescription();
     } else {
-      return "Failure";
+      return "Failed to add transaction to account " + body.getAccountName();
     }
   }
 
   @RequestMapping(path = "/transaction/get")
-  private List<Transaction> getTransactions(@RequestParam final String name) {
+  public List<Transaction> getTransactions(@RequestParam final String name) {
     return transactionService.getTransactionsByAccount(name);
   }
 }

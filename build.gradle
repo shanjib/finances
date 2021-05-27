@@ -1,6 +1,7 @@
 buildscript {
     repositories {
         mavenCentral()
+        maven { url "https://maven.vaadin.com/vaadin-addons" }
     }
     dependencies {
         classpath("org.springframework.boot:spring-boot-gradle-plugin:2.0.9.RELEASE")
@@ -21,6 +22,13 @@ bootJar {
 
 repositories {
     mavenCentral()
+    maven { url "https://maven.vaadin.com/vaadin-addons" }
+}
+
+dependencyManagement {
+	imports {
+		mavenBom 'com.vaadin:vaadin-bom:14.0.9'
+	}
 }
 
 sourceCompatibility = 1.8
@@ -32,8 +40,6 @@ configurations {
 
     /* Exclude to use jetty instead */
     compile.exclude module: 'spring-boot-starter-tomcat'
-
-    /* Exclude to use jetty instead */
     compile.exclude module: 'tomcat-jdbc'
 }
 
@@ -46,6 +52,7 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter")
     compile("org.springframework.boot:spring-boot-starter-web")
     compile("org.springframework.boot:spring-boot-starter-jetty")
+    compile("org.springframework.boot:spring-boot-starter-thymeleaf")
 
     /* Database Dependencies */
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -54,14 +61,8 @@ dependencies {
     compile("javax.xml.bind:jaxb-api")
     compile("org.javassist:javassist:3.23.1-GA")
 
-    compile("org.springframework.boot:spring-boot-starter-thymeleaf")
-
     /* Log4j instead of logback */
     compile("org.springframework.boot:spring-boot-starter-log4j2")
-
-    /* Test dependencies */
-    testCompile("org.springframework.boot:spring-boot-starter-test")
-    testCompile("junit:junit")
 }
 
 project.ext {
