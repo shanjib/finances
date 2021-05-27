@@ -1,9 +1,29 @@
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:th="http://www.thymeleaf.org">
 <head>
-
+  <meta charset="UTF-8">
+  <title>Home</title>
 </head>
 <body>
-<p th:text="${test}">failure</p>
+
+<table>
+  <tr>
+    <th>ID</th>
+    <th>NAME</th>
+    <th>BALANCE</th>
+    <th>TRANSACTIONS</th>
+  </tr>
+  <tr th:each="account : ${accounts}">
+    <td th:text="${account.id}">1</td>
+    <td th:text="${account.name}">Name</td>
+    <td th:text="${account.currentBalance}">0</td>
+    <td >
+      <a href="transactions.html" th:href="@{/transactions/{accountName}(accountName=${account.name})}">
+        Transactions
+      </a>
+    </td>
+  </tr>
+</table>
+
 </body>
 </html>

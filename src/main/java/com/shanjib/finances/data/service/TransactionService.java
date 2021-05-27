@@ -33,11 +33,13 @@ public class TransactionService {
 
   public boolean addTransaction(TransactionRequestBody body) {
     if (body.isNullOrEmpty()) {
+      log.error("Transaction request body is null or empty, {}", body);
       return false;
     }
 
     Account account = accountService.getAccount(body.getAccountName());
     if (account == null) {
+      log.error("Failed to find account for {}", body.getAccountName());
       return false;
     }
 

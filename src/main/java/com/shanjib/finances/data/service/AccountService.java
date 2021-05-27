@@ -8,6 +8,7 @@ import com.shanjib.finances.rest.model.AccountRequestBody;
 import com.shanjib.finances.utils.StringHelper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,20 +26,40 @@ public class AccountService {
       log.error("Account {} not found", name);
       return null;
     }
-    return accountRepo.findByName(name);
+    Account acc = accountRepo.findByName(name);
+    acc.setCurrentBalance(getBalance(acc));
+    return acc;
   }
 
-  public BigDecimal getAccountBalance(final String name) {
-    return getAccountBalance(name, LocalDate.now());
+  public List<Account> getAllAccounts() {
+    List<Account> accs = accountRepo.findAll();
+    accs.forEach(a -> a.setCurrentBalance(getBalance(a)));
+    return accs;
   }
 
-  public BigDecimal getAccountBalance(final String name, final LocalDate asOfDate) {
+  public BigDecimal getBalance(final String name) {
     Account account = getAccount(name);
     if (account == null) {
       log.error("Cannot find account with name {}.", name);
       return null;
     }
+    return getBalance(account, LocalDate.now());
+  }
 
+  public BigDecimal getBalance(final String name, final LocalDate asOfDate) {
+    Account account = getAccount(name);
+    if (account == null) {
+      log.error("Cannot find account with name {}.", name);
+      return null;
+    }
+    return getBalance(account, asOfDate);
+  }
+
+  public BigDecimal getBalance(final Account account) {
+    return getBalance(account, LocalDate.now());
+  }
+
+  public BigDecimal getBalance(final Account account, final LocalDate asOfDate) {
     Set<Transaction> transactions = account.getTransactions();
     BigDecimal balance = account.getInitialBalance();
     for (Transaction txn : transactions) {

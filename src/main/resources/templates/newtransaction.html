@@ -1,0 +1,26 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Post Transaction</title>
+</head>
+<body>
+
+<a href="transactions.html" th:href="@{/transactions/{accountName}(accountName=${account.name})}">
+  Back to Transactions
+</a>
+
+<form action="transaction" th:action="@{/transaction/post}" th:object="${transactionRequestBody}" method="post">
+
+  <p>Account <input type="text" th:field="*{accountName}" th:value="${account.name}" /></p>
+  <p>Date: <input type="date" th:field="*{date}" /> </p>
+  <p>Description: <input type="text" th:field="*{description}" /></p>
+  <p>Amount: <input type="number" th:field="*{amount}" /></p>
+  <p>Credit/Debit <input type="text" th:field="*{creditDebit}" value="Debit" /></p>
+  <input type="submit" value="Post" />
+
+</form>
+
+</body>
+</html>

@@ -23,6 +23,7 @@ public class Account implements Serializable {
   private long id;
   private String name;
   private BigDecimal initialBalance;
+  private BigDecimal currentBalance = BigDecimal.ZERO;
   @OneToMany(mappedBy = "accountId")
   private Set<Transaction> transactions;
 }

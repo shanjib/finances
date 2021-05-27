@@ -37,11 +37,11 @@ public class DataController {
 
   @RequestMapping(path = "/account/get/balance")
   public BigDecimal getAccountBalance(@RequestParam final String name) {
-    return accountService.getAccountBalance(name);
+    return accountService.getBalance(name);
   }
 
   @RequestMapping(path = "/transaction/post")
-  public String addTransaction(@RequestBody final TransactionRequestBody body) {
+  public String addTransaction(final TransactionRequestBody body) {
     if (transactionService.addTransaction(body)) {
       return "Successfully added transaction for " + body.getDescription();
     } else {

@@ -10,5 +10,6 @@ import org.springframework.data.repository.CrudRepository;
 public interface AccountRepo extends CrudRepository<Account, String> {
 
   Account findByName(final String name);
+  List<Account> findAll();
   List<Transaction> findTransactionsByName(final String name);
 }
