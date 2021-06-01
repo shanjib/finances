@@ -16,7 +16,7 @@ import lombok.NonNull;
 @Data
 @Entity
 @Embeddable
-public class Transaction {
+public class Transaction implements Comparable<Transaction>{
 
   @Id
   @GeneratedValue
@@ -30,4 +30,9 @@ public class Transaction {
   private BigDecimal amount;
   @NonNull
   private CreditDebitCode creditDebitCode;
+
+  @Override
+  public int compareTo(Transaction other) {
+    return this.date.compareTo(other.getDate());
+  }
 }

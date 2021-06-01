@@ -1,0 +1,27 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Monthly</title>
+</head>
+<body>
+
+<p th:if="${#strings.isEmpty(errorMsg)}">
+  <span th:text="${errorMsg}"></span>
+</p>
+
+<table>
+  <tr>
+    <th>DATE</th>
+    <th>BALANCE</th>
+    <th>TRANSACTIONS</th>
+  </tr>
+  <tr th:each="bal : ${balances}">
+    <td th:text="${bal.date}">Name</td>
+    <td th:text="${bal.balance}">0</td>
+    <td th:text="${bal.transactions}">0</td>
+  </tr>
+</table>
+
+</body>
+</html>

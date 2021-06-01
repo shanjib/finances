@@ -1,7 +1,10 @@
 package com.shanjib.finances.data.model;
 
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -26,4 +29,10 @@ public class Account implements Serializable {
   private BigDecimal currentBalance = BigDecimal.ZERO;
   @OneToMany(mappedBy = "accountId")
   private Set<Transaction> transactions;
+
+  public List<Transaction> getOrderedTransactions() {
+    List<Transaction> txns = Lists.newArrayList(transactions);
+    Collections.sort(txns);
+    return txns;
+  }
 }

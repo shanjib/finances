@@ -1,15 +1,20 @@
 package com.shanjib.finances.data.service;
 
+import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
+import com.shanjib.finances.data.model.Balance;
 import com.shanjib.finances.data.model.CreditDebitCode;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.repo.AccountRepo;
 import com.shanjib.finances.rest.model.AccountRequestBody;
+import com.shanjib.finances.utils.DateHelper;
 import com.shanjib.finances.utils.StringHelper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +42,65 @@ public class AccountService {
     return accs;
   }
 
+  public List<Balance> getBalancesAcrossDates(final String name, final String monthStr, final int year) {
+    Month month = DateHelper.getMonth(monthStr);
+    LocalDate startDate = LocalDate.of(year, month, 1);
+    LocalDate endDate = LocalDate.of(year, month, month.minLength());
+    return getBalancesAcrossDates(name, startDate, endDate);
+  }
+
+  public List<Balance> getBalancesAcrossDates(final String name, final LocalDate startDate, final LocalDate endDate) {
+    if (startDate.isAfter(endDate)) {
+      log.error("");
+      return null;
+    }
+
+    Account account = getAccount(name);
+    if (account == null) {
+      log.error("Cannot find account with name {}.", name);
+      return null;
+    }
+
+    BigDecimal balance = account.getInitialBalance();
+    Map<LocalDate, List<Transaction>> dateToTxnMap = new HashMap<>();
+    for (Transaction txn : account.getOrderedTransactions()) {
+      // skip all txns after end date
+      if (txn.getDate().isAfter(endDate))
+        break;
+
+      // add til initial balance on start date
+      if (txn.getDate().isBefore(startDate)) {
+        balance = addTransaction(balance, txn);
+        continue;
+      }
+
+      List<Transaction> dateTxns = dateToTxnMap.getOrDefault(txn.getDate(), Lists.newArrayList());
+      dateTxns.add(txn);
+      dateToTxnMap.put(txn.getDate(), dateTxns);
+    }
+
+    List<Balance> balances = Lists.newArrayList();
+    LocalDate currentDate = startDate;
+    while (endDate.isAfter(currentDate)) {
+      List<Transaction> dateTxns = dateToTxnMap.get(currentDate);
+      if (dateTxns == null) {
+        balances.add(Balance.builder()
+            .date(currentDate)
+            .balance(balance)
+            .build());
+      } else {
+        balance = addTransaction(balance, dateTxns);
+        balances.add(Balance.builder()
+            .date(currentDate)
+            .balance(balance)
+            .transactions(dateTxns)
+            .build());
+      }
+      currentDate = currentDate.plusDays(1);
+    }
+    return balances;
+  }
+
   public BigDecimal getBalance(final String name) {
     Account account = getAccount(name);
     if (account == null) {
@@ -60,16 +124,13 @@ public class AccountService {
   }
 
   public BigDecimal getBalance(final Account account, final LocalDate asOfDate) {
-    Set<Transaction> transactions = account.getTransactions();
+    List<Transaction> transactions = account.getOrderedTransactions();
     BigDecimal balance = account.getInitialBalance();
     for (Transaction txn : transactions) {
       if (txn.getDate().isAfter(asOfDate))
         continue;
 
-      if (CreditDebitCode.CREDIT.equals(txn.getCreditDebitCode()))
-        balance = balance.add(txn.getAmount());
-      if (CreditDebitCode.DEBIT.equals(txn.getCreditDebitCode()))
-        balance = balance.subtract(txn.getAmount());
+      balance = addTransaction(balance, txn);
     }
     return balance;
   }
@@ -89,5 +150,23 @@ public class AccountService {
 
   public void save(final Account account) {
     accountRepo.save(account);
+  }
+
+  private BigDecimal addTransaction(final BigDecimal initialAmount, final List<Transaction> txns) {
+    BigDecimal balance = initialAmount;
+    for (Transaction txn : txns) {
+      balance = addTransaction(balance, txn);
+    }
+    return balance;
+  }
+
+  private BigDecimal addTransaction(final BigDecimal initialAmount, final Transaction txn) {
+    if (CreditDebitCode.CREDIT.equals(txn.getCreditDebitCode()))
+      return initialAmount.add(txn.getAmount());
+
+    if (CreditDebitCode.DEBIT.equals(txn.getCreditDebitCode()))
+      return initialAmount.subtract(txn.getAmount());
+
+    return BigDecimal.ZERO;
   }
 }

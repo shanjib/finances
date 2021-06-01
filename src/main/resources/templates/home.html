@@ -22,8 +22,13 @@
     <td th:text="${account.name}">Name</td>
     <td th:text="${account.currentBalance}">0</td>
     <td >
-      <a href="transactions.html" th:href="@{/transactions/{accountName}(accountName=${account.name})}">
+      <a th:href="@{/transactions/{accountName}(accountName=${account.name})}">
         Transactions
+      </a>
+    </td>
+    <td >
+      <a th:href="@{/accounts/{accountName}/may(accountName=${account.name})}">
+        This month
       </a>
     </td>
   </tr>

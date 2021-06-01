@@ -1,10 +1,12 @@
 package com.shanjib.finances.rest;
 
 import com.shanjib.finances.data.model.Account;
+import com.shanjib.finances.data.model.Balance;
 import com.shanjib.finances.data.service.AccountService;
 import com.shanjib.finances.data.service.TransactionService;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -25,6 +27,13 @@ public class WebController {
   public String home(final ModelMap model) {
     model.addAttribute("accounts", accountService.getAllAccounts());
     return "home";
+  }
+
+  @GetMapping("/accounts/{accountName}/{month}")
+  public String getBalancesForMonth(final ModelMap model, @PathVariable("accountName") String accountName, @PathVariable("month") String month) {
+    List<Balance> balances = accountService.getBalancesAcrossDates(accountName, month, 2021);
+    model.addAttribute("balances", balances);
+    return "views/accounts/templates/monthly";
   }
 
   @GetMapping("/transactions/{accountName}")
