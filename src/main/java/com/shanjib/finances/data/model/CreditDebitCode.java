@@ -5,15 +5,12 @@ public enum CreditDebitCode {
   DEBIT;
 
   public static CreditDebitCode getEnum(String creditDebit) {
+    creditDebit = creditDebit.toLowerCase();
     switch(creditDebit) {
-      case "C":
       case "c":
-      case "CREDIT":
       case "credit":
         return CREDIT;
-      case "D":
       case "d":
-      case "DEBIT":
       case "debit":
         return DEBIT;
       default:

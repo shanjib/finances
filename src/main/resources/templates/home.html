@@ -6,6 +6,10 @@
 </head>
 <body>
 
+<p th:if="${#strings.isEmpty(errorMsg)}">
+  <span th:text="${errorMsg}"></span>
+</p>
+
 <table>
   <tr>
     <th>ID</th>

@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.CreditDebitCode;
 import com.shanjib.finances.data.model.Transaction;
+import com.shanjib.finances.data.repo.AccountRepo;
 import com.shanjib.finances.data.repo.TransactionRepo;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class TransactionService {
 
   private final TransactionRepo transactionRepo;
+  private final AccountRepo accountRepo;
   private final AccountService accountService;
 
   public List<Transaction> getTransactionsByAccount(String accountName) {
@@ -51,7 +53,13 @@ public class TransactionService {
         .amount(new BigDecimal(body.getAmount()))
         .creditDebitCode(CreditDebitCode.getEnum(body.getCreditDebit()))
         .build();
+
+    account.getTransactions().add(transaction);
+    accountRepo.save(account);
+    accountRepo.refresh(account);
+
     transactionRepo.save(transaction);
+    transactionRepo.refresh(transaction);
     return true;
   }
 }

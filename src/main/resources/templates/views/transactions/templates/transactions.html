@@ -6,9 +6,13 @@
 </head>
 <body>
 
-<a href="../home.html">
+<a href="/">
   Go Home
 </a>
+
+<p th:if="not ${#strings.isEmpty(errorMsg)}">
+  <span th:text="${errorMsg}"></span>
+</p>
 
 <table>
   <tr>
