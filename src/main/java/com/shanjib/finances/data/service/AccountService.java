@@ -1,9 +1,10 @@
 package com.shanjib.finances.data.service;
 
+import static com.shanjib.finances.utils.MathHelper.addTransaction;
+
 import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Balance;
-import com.shanjib.finances.data.model.CreditDebitCode;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.repo.AccountRepo;
 import com.shanjib.finances.rest.model.AccountRequestBody;
@@ -12,7 +13,9 @@ import com.shanjib.finances.utils.StringHelper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -40,6 +43,17 @@ public class AccountService {
     List<Account> accs = accountRepo.findAll();
     accs.forEach(a -> a.setCurrentBalance(getBalance(a)));
     return accs;
+  }
+
+  public LinkedHashMap<Account, List<Balance>> getBalancesForAllAccountsAcrossDates(final String monthStr, final int year) {
+    List<Account> accs = accountRepo.findAll();
+    Collections.sort(accs);
+    LinkedHashMap<Account, List<Balance>> accountToBalances = new LinkedHashMap<>();
+
+    for (Account acc : accs) {
+      accountToBalances.put(acc, getBalancesAcrossDates(acc.getName(), monthStr, year));
+    }
+    return accountToBalances;
   }
 
   public List<Balance> getBalancesAcrossDates(final String name, final String monthStr, final int year) {
@@ -81,16 +95,18 @@ public class AccountService {
 
     List<Balance> balances = Lists.newArrayList();
     LocalDate currentDate = startDate;
-    while (endDate.isAfter(currentDate)) {
+    while (endDate.isAfter(currentDate) || endDate.isEqual(currentDate)) {
       List<Transaction> dateTxns = dateToTxnMap.get(currentDate);
       if (dateTxns == null) {
         balances.add(Balance.builder()
+            .accountName(name)
             .date(currentDate)
             .balance(balance)
             .build());
       } else {
         balance = addTransaction(balance, dateTxns);
         balances.add(Balance.builder()
+            .accountName(name)
             .date(currentDate)
             .balance(balance)
             .transactions(dateTxns)
@@ -150,23 +166,5 @@ public class AccountService {
 
   public void save(final Account account) {
     accountRepo.save(account);
-  }
-
-  private BigDecimal addTransaction(final BigDecimal initialAmount, final List<Transaction> txns) {
-    BigDecimal balance = initialAmount;
-    for (Transaction txn : txns) {
-      balance = addTransaction(balance, txn);
-    }
-    return balance;
-  }
-
-  private BigDecimal addTransaction(final BigDecimal initialAmount, final Transaction txn) {
-    if (CreditDebitCode.CREDIT.equals(txn.getCreditDebitCode()))
-      return initialAmount.add(txn.getAmount());
-
-    if (CreditDebitCode.DEBIT.equals(txn.getCreditDebitCode()))
-      return initialAmount.subtract(txn.getAmount());
-
-    return BigDecimal.ZERO;
   }
 }

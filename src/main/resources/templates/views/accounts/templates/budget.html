@@ -1,0 +1,47 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Budget</title>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    .container {
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+
+<a href="/">
+  Go Home
+</a>
+
+<p th:if="${#strings.isEmpty(errorMsg)}">
+  <span th:text="${errorMsg}"></span>
+</p>
+
+<div class="container">
+  <table>
+    <tr>
+      <td>DATES</td>
+      <td colspan="2" th:each="entry : ${balances}"><p><span th:text="${entry.key.name}"></span></p></td>
+    </tr>
+    <th:block th:each="i : ${#numbers.sequence(0, dates.size()-1)}">
+      <tr>
+        <td th:text="${dates.get(i)}">date</td>
+        <th:block th:each="entry : ${balances}">
+          <td th:text="${entry.value.get(i).balance}">balance</td>
+          <td>
+            <a th:text="${entry.value.get(i).getTotalTransactionAmount()}" th:href="@{/transactions/{accountName}/new/{date}(accountName=${entry.key.name},date=${entry.value.get(i).date})}">transaction amount</a>
+          </td>
+        </th:block>
+      </tr>
+    </th:block>
+  </table>
+</div>
+</body>
+</html>

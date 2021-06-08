@@ -19,7 +19,14 @@
   <tr th:each="bal : ${balances}">
     <td th:text="${bal.date}">Name</td>
     <td th:text="${bal.balance}">0</td>
-    <td th:text="${bal.transactions}">0</td>
+    <td>
+      <table>
+        <tr th:each="txn : ${bal.transactions}">
+          <td th:text="${txn.amount}">0</td>
+          <td th:text="${txn.description}">0</td>
+        </tr>
+      </table>
+    </td>
   </tr>
 </table>
 

@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 @Entity
-public class Account implements Serializable {
+public class Account implements Serializable, Comparable<Account> {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,5 +34,10 @@ public class Account implements Serializable {
     List<Transaction> txns = Lists.newArrayList(transactions);
     Collections.sort(txns);
     return txns;
+  }
+
+  @Override
+  public int compareTo(Account o) {
+    return this.getName().compareTo(o.getName());
   }
 }

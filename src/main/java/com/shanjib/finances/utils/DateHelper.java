@@ -1,9 +1,10 @@
 package com.shanjib.finances.utils;
 
+import java.time.LocalDate;
 import java.time.Month;
+import java.time.format.DateTimeParseException;
 
 public class DateHelper {
-
 
   public static Month getMonth(final String monthStr) {
     switch (monthStr.toLowerCase()) {
@@ -44,6 +45,14 @@ public class DateHelper {
         return Month.DECEMBER;
       default:
         return null;
+    }
+  }
+
+  public static LocalDate getNewTransactionDefaultDate(String date) {
+    try {
+      return LocalDate.parse(date);
+    } catch (DateTimeParseException e) {
+      return LocalDate.now();
     }
   }
 }
