@@ -2,7 +2,7 @@ package com.shanjib.finances.data.service;
 
 import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
-import com.shanjib.finances.data.model.CreditDebitCode;
+import com.shanjib.finances.data.model.TransactionType;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.repo.AccountRepo;
 import com.shanjib.finances.data.repo.TransactionRepo;
@@ -51,7 +51,7 @@ public class TransactionService {
         .date(LocalDate.parse(body.getDate()))
         .description(body.getDescription())
         .amount(new BigDecimal(body.getAmount()))
-        .creditDebitCode(CreditDebitCode.getEnum(body.getCreditDebit()))
+        .transactionType(TransactionType.getEnum(body.getTransactionType()))
         .build();
 
     account.getTransactions().add(transaction);

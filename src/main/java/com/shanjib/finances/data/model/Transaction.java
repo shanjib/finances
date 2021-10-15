@@ -29,7 +29,7 @@ public class Transaction implements Comparable<Transaction>{
   @NonNull
   private BigDecimal amount;
   @NonNull
-  private CreditDebitCode creditDebitCode;
+  private TransactionType transactionType;
 
   @Override
   public int compareTo(Transaction other) {

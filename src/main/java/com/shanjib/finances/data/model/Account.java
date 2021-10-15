@@ -3,9 +3,11 @@ package com.shanjib.finances.data.model;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -34,6 +36,12 @@ public class Account implements Serializable, Comparable<Account> {
     List<Transaction> txns = Lists.newArrayList(transactions);
     Collections.sort(txns);
     return txns;
+  }
+
+  public Set<Transaction> getTransactionsForDate(LocalDate date) {
+    return transactions.stream()
+        .filter(t -> t.getDate().isEqual(date))
+        .collect(Collectors.toSet());
   }
 
   @Override

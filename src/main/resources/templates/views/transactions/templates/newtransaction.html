@@ -7,15 +7,23 @@
 </head>
 <body>
 
+<a href="/">
+  Go Home
+</a>
+<br/>
+<a href="transactions.html" th:href="@{/accounts/{month}(month=${month})}">
+  Back to Budget
+</a>
 <a href="transactions.html" th:href="@{/transactions/{accountName}(accountName=${account.name})}">
   Back to Transactions
 </a>
 
-<form action="transaction" th:action="@{/transactions/new}" th:object="${transactionRequestBody}"
+<form action="transaction"
+      th:action="@{/transactions/new}"
+      th:object="${transactionRequestBody}"
       method="post">
 
   <table>
-
     <tr>
       <td>
         <label for="account">Account</label>
@@ -25,7 +33,6 @@
         <input type="text" id="account" th:name="accountName" th:id="accountName" th:value="${account.name}"/>
       </td>
     </tr>
-
     <tr>
       <td>
         <label for="date">Date</label>
@@ -35,7 +42,6 @@
         <input type="date" id="date" th:name="date" th:id="date" th:value="${defaultDate}"/>
       </td>
     </tr>
-
     <tr>
       <td>
         <label for="desc">Description</label>
@@ -44,28 +50,31 @@
         <input type="text" id="desc" th:field="*{description}"/>
       </td>
     </tr>
-
     <tr>
       <td>
         <label for="amount">Amount</label>
       </td>
       <td>
-        <input type="number" id="amount" th:field="*{amount}"/>
+        <input type="number" id="amount" th:field="*{amount}" step="0.01"/>
       </td>
     </tr>
-
     <tr>
       <td>
-        <label for="cd">Credit/Debit</label>
+        <label for="type">Transaction Type</label>
       </td>
       <td>
         <!-- use name/id to map to object, so value can be defaulted -->
-        <input type="text" id="cd" th:name="creditDebit" th:id="creditDebit" value="Debit"/>
+<!--        <input type="text" id="cd" th:name="creditDebit" th:id="creditDebit" value="Debit"/>-->
+        <select id="type" th:name="transactionType" th:id="transactionType">
+          <option value="Debit">Debit</option>
+          <option value="Credit">Credit</option>
+          <option value="Transfer">Transfer</option>
+        </select>
       </td>
     </tr>
-
   </table>
   <input type="submit" value="Post"/>
+  <input type="reset"/>
 
 </form>
 

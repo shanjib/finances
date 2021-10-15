@@ -51,7 +51,7 @@ public class DateHelper {
   public static LocalDate getNewTransactionDefaultDate(String date) {
     try {
       return LocalDate.parse(date);
-    } catch (DateTimeParseException e) {
+    } catch (DateTimeParseException | NullPointerException e) {
       return LocalDate.now();
     }
   }

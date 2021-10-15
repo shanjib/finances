@@ -2,6 +2,7 @@ package com.shanjib.finances.rest;
 
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Balance;
+import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
 import com.shanjib.finances.data.service.TransactionService;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
@@ -9,6 +10,7 @@ import com.shanjib.finances.utils.DateHelper;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -73,22 +75,37 @@ public class WebController {
     return "views/accounts/templates/budget";
   }
 
-  @GetMapping("/transactions/{accountName}")
+  @GetMapping(value = {
+      "/transactions/{accountName}",
+      "/transactions/{accountName}/{date}"
+  })
   public String getTransactions(final ModelMap model,
-      @PathVariable("accountName") String accountName) {
+      @PathVariable("accountName") String accountName,
+      @PathVariable(value = "date", required = false) String date) {
     Account account = accountService.getAccount(accountName);
-    if (account != null) {
-      model.addAttribute(account);
-      return "views/transactions/templates/transactions";
-    } else {
+    if (account == null) {
       model.addAttribute("errorMsg", "Failed to find account");
       return "home";
     }
+
+    Set<Transaction> txns;
+    LocalDate defaultDate = DateHelper.getNewTransactionDefaultDate(date);
+    if (date == null) {
+      txns = account.getTransactions();
+    } else {
+      txns = account.getTransactionsForDate(defaultDate);
+    }
+    model.addAttribute(account);
+    model.addAttribute("accountName", account.getName());
+    model.addAttribute("transactions", txns);
+    model.addAttribute("date", date);
+    model.addAttribute("month", defaultDate.getMonth().name());
+    return "views/transactions/templates/transactions";
   }
 
   @GetMapping(value = {
-      "/transactions/{accountName}/new",
-      "/transactions/{accountName}/new/{date}"
+      "/transactions/new/{accountName}",
+      "/transactions/new/{accountName}/{date}"
   })
   public String getNewTransaction(final ModelMap model,
       @PathVariable("accountName") String accountName,
@@ -96,7 +113,10 @@ public class WebController {
     model.addAttribute(new TransactionRequestBody());
     Account account = accountService.getAccount(accountName);
     model.addAttribute(account);
-    model.addAttribute("defaultDate", DateHelper.getNewTransactionDefaultDate(date));
+
+    LocalDate defaultDate = DateHelper.getNewTransactionDefaultDate(date);
+    model.addAttribute("defaultDate", defaultDate);
+    model.addAttribute("month", defaultDate.getMonth().name());
     return "views/transactions/templates/newtransaction";
   }
 
@@ -105,6 +125,6 @@ public class WebController {
     if (!transactionService.addTransaction(body)) {
       model.addAttribute("errorMsg", "Failed to add transaction");
     }
-    return getTransactions(model, body.getAccountName());
+    return getTransactions(model, body.getAccountName(), body.getDate());
   }
 }

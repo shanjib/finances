@@ -9,6 +9,10 @@
 <a href="/">
   Go Home
 </a>
+<br/>
+<a href="transactions.html" th:href="@{/accounts/{month}(month=${month})}">
+  Back to Budget
+</a>
 
 <p th:if="not ${#strings.isEmpty(errorMsg)}">
   <span th:text="${errorMsg}"></span>
@@ -20,20 +24,20 @@
     <th>DATE</th>
     <th>AMOUNT</th>
     <th>DESCRIPTION</th>
-    <th>CREDIT/DEBIT</th>
+    <th>TYPE</th>
     <th></th>
   </tr>
-  <tr th:each="txn : ${account.transactions}">
+  <tr th:each="txn : ${transactions}">
     <td th:text="${txn.id}">1</td>
     <td th:text="${txn.date}">Date</td>
     <td th:text="${txn.amount}">0</td>
     <td th:text="${txn.description}">Stuff</td>
-    <td th:text="${txn.creditDebitCode}">C</td>
+    <td th:text="${txn.transactionType}">T</td>
     <td>delete</td>
   </tr>
 </table>
 
-<a href="newtransaction.html" th:href="@{/transactions/{accountName}/new(accountName=${account.name})}">
+<a href="newtransaction.html" th:href="@{/transactions/new/{accountName}/{date}(accountName=${accountName},date=${date})}">
   Add New Transaction
 </a>
 

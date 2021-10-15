@@ -27,16 +27,23 @@
 <div class="container">
   <table>
     <tr>
+      <!-- Create Title Row for each account -->
       <td>DATES</td>
-      <td colspan="2" th:each="entry : ${balances}"><p><span th:text="${entry.key.name}"></span></p></td>
+      <td colspan="2" th:each="entry : ${balances}">
+        <p><span th:text="${entry.key.name}"></span></p>
+      </td>
     </tr>
     <th:block th:each="i : ${#numbers.sequence(0, dates.size()-1)}">
+      <!-- Create 1 row for each day of month -->
       <tr>
         <td th:text="${dates.get(i)}">date</td>
         <th:block th:each="entry : ${balances}">
           <td th:text="${entry.value.get(i).balance}">balance</td>
           <td>
-            <a th:text="${entry.value.get(i).getTotalTransactionAmount()}" th:href="@{/transactions/{accountName}/new/{date}(accountName=${entry.key.name},date=${entry.value.get(i).date})}">transaction amount</a>
+            <a th:text="${entry.value.get(i).getTotalTransactionAmount()}"
+               th:href="@{/transactions/{accountName}/{date}(accountName=${entry.key.name},date=${entry.value.get(i).date})}">
+              transaction amount
+            </a>
           </td>
         </th:block>
       </tr>
