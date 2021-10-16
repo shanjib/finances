@@ -1,6 +1,5 @@
 package com.shanjib.finances.utils;
 
-import com.shanjib.finances.data.model.TransactionType;
 import com.shanjib.finances.data.model.Transaction;
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,12 +15,14 @@ public class MathHelper {
   }
 
   public static BigDecimal addTransaction(final BigDecimal initialAmount, final Transaction txn) {
-    if (TransactionType.CREDIT.equals(txn.getTransactionType()))
-      return initialAmount.add(txn.getAmount());
-
-    if (TransactionType.DEBIT.equals(txn.getTransactionType()))
-      return initialAmount.subtract(txn.getAmount());
-
-    return BigDecimal.ZERO;
+    switch (txn.getTransactionType()) {
+      case CREDIT:
+      case TRANSFER:
+        return initialAmount.add(txn.getAmount());
+      case DEBIT:
+        return initialAmount.subtract(txn.getAmount());
+      default:
+        return BigDecimal.ZERO;
+    }
   }
 }

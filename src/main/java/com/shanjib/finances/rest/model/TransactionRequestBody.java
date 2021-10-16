@@ -11,6 +11,7 @@ public class TransactionRequestBody {
   private String description;
   private String amount;
   private String transactionType;
+  private String transferAccount;
 
   public boolean isNullOrEmpty() {
     return StringUtils.isNullOrEmpty(accountName)

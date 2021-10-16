@@ -73,6 +73,15 @@
         </select>
       </td>
     </tr>
+    <tr>
+      <td>
+        <label for="transferAccount">Transfer Account</label>
+      </td>
+      <td>
+        <!-- use name/id to map to object, so value can be defaulted -->
+        <input type="text" id="transferAccount" th:name="transferAccount" th:id="transferAccount" th:value="${account.name}"/>
+      </td>
+    </tr>
   </table>
   <input type="submit" value="Post"/>
   <input type="reset"/>

@@ -40,6 +40,14 @@ public class TransactionService {
       return false;
     }
 
+    TransactionType txnType = TransactionType.getEnum(body.getTransactionType());
+    if (TransactionType.TRANSFER.equals(txnType) && StringUtils.isNullOrEmpty(body.getTransferAccount())) {
+      log.error("Transaction request body is null or empty, {}", body);
+      return false;
+    } else if (TransactionType.TRANSFER.equals(txnType)) {
+      addTransferTransaction(body);
+    }
+
     Account account = accountService.getAccount(body.getAccountName());
     if (account == null) {
       log.error("Failed to find account for {}", body.getAccountName());
@@ -48,7 +56,7 @@ public class TransactionService {
 
     Transaction transaction = Transaction.builder()
         .accountId(account.getId())
-        .accountName(body.getAccountName())
+        .accountName(account.getName())
         .date(LocalDate.parse(body.getDate()))
         .description(body.getDescription())
         .amount(new BigDecimal(body.getAmount()))
@@ -69,5 +77,33 @@ public class TransactionService {
     Transaction txn = transactionRepo.getById(id);
     transactionRepo.deleteById(id);
     return txn == null ? null : txn.getAccountName();
+  }
+
+  private boolean addTransferTransaction(TransactionRequestBody body) {
+    Account account = accountService.getAccount(body.getTransferAccount());
+    if (account == null) {
+      log.error("Failed to find account for {}", body.getAccountName());
+      return false;
+    }
+
+    BigDecimal amount = new BigDecimal(body.getAmount());
+    amount = amount.negate();
+
+    Transaction transaction = Transaction.builder()
+        .accountId(account.getId())
+        .accountName(account.getName())
+        .date(LocalDate.parse(body.getDate()))
+        .description(body.getDescription())
+        .amount(amount)
+        .transactionType(TransactionType.TRANSFER)
+        .build();
+
+    account.getTransactions().add(transaction);
+    accountRepo.save(account);
+    accountRepo.refresh(account);
+
+    transactionRepo.save(transaction);
+    transactionRepo.refresh(transaction);
+    return true;
   }
 }
