@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Transactions</title>
+  <link th:href="@{/styles/main.css}" rel="stylesheet" />
 </head>
 <body>
 
@@ -10,10 +11,10 @@
   Go Home
 </a>
 <br/>
-<a href="transactions.html" th:href="@{/accounts/get/{month}(month=${month})}">
+<a href="transactions.html" th:href="@{/budget/get/{month}(month=${month})}">
   Back to Budget
 </a>
-
+<br/>
 <p th:if="not ${#strings.isEmpty(errorMsg)}">
   <span th:text="${errorMsg}"></span>
 </p>

@@ -29,8 +29,8 @@ public class TransactionController {
       "/transactions/get/{accountName}/{date}"
   })
   public String getTransactions(final ModelMap model,
-      @PathVariable("accountName") String accountName,
-      @PathVariable(value = "date", required = false) String date) {
+      @PathVariable("accountName") final String accountName,
+      @PathVariable(value = "date", required = false) final String date) {
     Account account = accountService.getAccount(accountName);
     if (account == null) {
       model.addAttribute("errorMsg", "Failed to find account");
@@ -49,7 +49,7 @@ public class TransactionController {
     model.addAttribute("transactions", txns);
     model.addAttribute("date", date);
     model.addAttribute("month", defaultDate.getMonth().name());
-    return "views/transactions/templates/transactions";
+    return "transactions/transactions";
   }
 
   @GetMapping(value = {
@@ -57,8 +57,8 @@ public class TransactionController {
       "/transactions/new/{accountName}/{date}"
   })
   public String getNewTransaction(final ModelMap model,
-      @PathVariable("accountName") String accountName,
-      @PathVariable(value = "date", required = false) String date) {
+      @PathVariable("accountName") final String accountName,
+      @PathVariable(value = "date", required = false) final String date) {
     model.addAttribute(new TransactionRequestBody());
     Account account = accountService.getAccount(accountName);
     model.addAttribute(account);
@@ -66,11 +66,12 @@ public class TransactionController {
     LocalDate defaultDate = DateHelper.getNewTransactionDefaultDate(date);
     model.addAttribute("defaultDate", defaultDate);
     model.addAttribute("month", defaultDate.getMonth().name());
-    return "views/transactions/templates/newtransaction";
+    return "transactions/newtransaction";
   }
 
   @PostMapping(path = "/transactions/new")
-  public String addTransaction(final ModelMap model, final TransactionRequestBody body) {
+  public String addTransaction(final ModelMap model,
+      final TransactionRequestBody body) {
     if (!transactionService.addTransaction(body)) {
       model.addAttribute("errorMsg", "Failed to add transaction");
     }
@@ -79,7 +80,7 @@ public class TransactionController {
 
   @GetMapping(path = "/transactions/delete/{txnId}")
   public String deleteTransaction(final ModelMap model,
-      @PathVariable("txnId") long id) {
+      @PathVariable("txnId") final long id) {
     String account = transactionService.deleteTransaction(id);
     if (account == null) {
       model.addAttribute("errorMsg", "Failed to delete transaction");

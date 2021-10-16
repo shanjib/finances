@@ -1,0 +1,14 @@
+table, th, td {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+form#navBackForm {
+  float: left;
+}
+form#navNextForm {
+  clear: right;
+  margin-right: 20px;
+}
+.container {
+  overflow: hidden;
+}

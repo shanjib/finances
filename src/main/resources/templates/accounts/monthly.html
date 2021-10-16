@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <title>Monthly</title>
+  <link th:href="@{/styles/main.css}" rel="stylesheet" />
 </head>
 <body>
 
+<a href="/">
+  Go Home
+</a>
+<br/>
 <p th:if="${#strings.isEmpty(errorMsg)}">
   <span th:text="${errorMsg}"></span>
 </p>

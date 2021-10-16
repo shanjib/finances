@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Home</title>
+  <link th:href="@{/styles/main.css}" rel="stylesheet" />
 </head>
 <body>
 
@@ -10,8 +11,8 @@
   <span th:text="${errorMsg}"></span>
 </p>
 
-<a th:href="@{/accounts/get}">
-  This month Budget
+<a th:href="@{/budget/get}">
+  This month's Budget
 </a>
 
 <table>

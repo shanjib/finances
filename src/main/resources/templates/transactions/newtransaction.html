@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Post Transaction</title>
+  <link th:href="@{/styles/main.css}" rel="stylesheet" />
 </head>
 <body>
 
@@ -11,13 +12,17 @@
   Go Home
 </a>
 <br/>
-<a href="transactions.html" th:href="@{/accounts/get/{month}(month=${month})}">
+<a href="transactions.html" th:href="@{/budget/get/{month}(month=${month})}">
   Back to Budget
 </a>
 <br/>
 <a href="transactions.html" th:href="@{/transactions/get/{accountName}(accountName=${account.name})}">
   Back to Transactions
 </a>
+<br/>
+<p th:if="${#strings.isEmpty(errorMsg)}">
+  <span th:text="${errorMsg}"></span>
+</p>
 
 <form action="transaction"
       th:action="@{/transactions/new}"

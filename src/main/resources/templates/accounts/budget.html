@@ -4,15 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Budget</title>
-  <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-    }
-    .container {
-      overflow: hidden;
-    }
-  </style>
+  <link th:href="@{/styles/main.css}" rel="stylesheet" />
 </head>
 <body>
 
@@ -50,5 +42,26 @@
     </th:block>
   </table>
 </div>
+
+<div class="container">
+  <form id="navBackForm"
+        th:object="${navigationRequestBody}"
+        th:action="@{/budget/nav}">
+    <!-- use name/id to map to object, so value can be defaulted -->
+    <input type="hidden" id="backDirection" th:name="direction" th:id="direction" th:value="previous"/>
+    <input type="hidden" id="backDate" th:name="date" th:id="date" th:value="${dates.get(0)}"/>
+    <input type="submit" value="Prior Month">
+  </form>
+
+  <form id="navNextForm"
+        th:object="${navigationRequestBody}"
+        th:action="@{/budget/nav}">
+    <!-- use name/id to map to object, so value can be defaulted -->
+    <input type="hidden" id="nextDirection" th:name="direction" th:id="direction" th:value="next"/>
+    <input type="hidden" id="nextDate" th:name="date" th:id="date" th:value="${dates.get(dates.size()-1)}"/>
+    <input type="submit" value="Next Month">
+  </form>
+</div>
+
 </body>
 </html>

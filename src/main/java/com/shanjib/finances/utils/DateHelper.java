@@ -60,6 +60,14 @@ public class DateHelper {
     }
   }
 
+  public static LocalDate parseDate(String date) {
+    try {
+      return LocalDate.parse(date);
+    } catch (DateTimeParseException | NullPointerException e) {
+      return null;
+    }
+  }
+
   public static LocalDate getNewTransactionDefaultDate(String date) {
     try {
       return LocalDate.parse(date);
