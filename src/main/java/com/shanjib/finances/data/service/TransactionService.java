@@ -2,14 +2,15 @@ package com.shanjib.finances.data.service;
 
 import com.google.common.collect.Lists;
 import com.shanjib.finances.data.model.Account;
-import com.shanjib.finances.data.model.TransactionType;
 import com.shanjib.finances.data.model.Transaction;
+import com.shanjib.finances.data.model.TransactionType;
 import com.shanjib.finances.data.repo.AccountRepo;
 import com.shanjib.finances.data.repo.TransactionRepo;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import javax.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.h2.util.StringUtils;
@@ -61,5 +62,12 @@ public class TransactionService {
     transactionRepo.save(transaction);
     transactionRepo.refresh(transaction);
     return true;
+  }
+
+  @Transactional
+  public String deleteTransaction(long id) {
+    Transaction txn = transactionRepo.getById(id);
+    transactionRepo.deleteById(id);
+    return txn == null ? null : txn.getAccountName();
   }
 }

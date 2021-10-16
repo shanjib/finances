@@ -14,7 +14,8 @@
 <a href="transactions.html" th:href="@{/accounts/{month}(month=${month})}">
   Back to Budget
 </a>
-<a href="transactions.html" th:href="@{/transactions/{accountName}(accountName=${account.name})}">
+<br/>
+<a href="transactions.html" th:href="@{/transactions/get/{accountName}(accountName=${account.name})}">
   Back to Transactions
 </a>
 

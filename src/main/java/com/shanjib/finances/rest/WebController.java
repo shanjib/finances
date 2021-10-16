@@ -76,8 +76,8 @@ public class WebController {
   }
 
   @GetMapping(value = {
-      "/transactions/{accountName}",
-      "/transactions/{accountName}/{date}"
+      "/transactions/get/{accountName}",
+      "/transactions/get/{accountName}/{date}"
   })
   public String getTransactions(final ModelMap model,
       @PathVariable("accountName") String accountName,
@@ -126,5 +126,16 @@ public class WebController {
       model.addAttribute("errorMsg", "Failed to add transaction");
     }
     return getTransactions(model, body.getAccountName(), body.getDate());
+  }
+
+  @GetMapping(path = "/transactions/delete/{txnId}")
+  public String deleteTransaction(final ModelMap model,
+      @PathVariable("txnId") long id) {
+    String account = transactionService.deleteTransaction(id);
+    if (account == null) {
+      model.addAttribute("errorMsg", "Failed to delete transaction");
+      return "home";
+    }
+    return getTransactions(model, account, null);
   }
 }

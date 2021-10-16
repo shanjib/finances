@@ -41,7 +41,7 @@
           <td th:text="${entry.value.get(i).balance}">balance</td>
           <td>
             <a th:text="${entry.value.get(i).getTotalTransactionAmount()}"
-               th:href="@{/transactions/{accountName}/{date}(accountName=${entry.key.name},date=${entry.value.get(i).date})}">
+               th:href="@{/transactions/get/{accountName}/{date}(accountName=${entry.key.name},date=${entry.value.get(i).date})}">
               transaction amount
             </a>
           </td>

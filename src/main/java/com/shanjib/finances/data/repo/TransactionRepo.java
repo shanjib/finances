@@ -8,4 +8,6 @@ public interface TransactionRepo extends CustomRepository<Transaction, String> {
 
   List<Transaction> findByAccountName(String name);
   List<Transaction> findByAccountNameAndDate(String name, LocalDate date);
+  Transaction getById(long id);
+  void deleteById(long id);
 }
