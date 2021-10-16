@@ -3,6 +3,8 @@ package com.shanjib.finances.rest;
 import com.shanjib.finances.data.model.Account;
 import com.shanjib.finances.data.model.Balance;
 import com.shanjib.finances.data.service.AccountService;
+import com.shanjib.finances.rest.model.NavigationDirection;
+import com.shanjib.finances.rest.model.NavigationRequestBody;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,7 +23,11 @@ public class AccountController {
 
   private AccountService accountService;
 
-  @GetMapping("/accounts/get/{accountName}/{month}")
+  @GetMapping(value = {
+      "/accounts/get/{accountName}",
+      "/accounts/get/{accountName}/{month}",
+      "/accounts/get/{accountName}/{month}/{year}"
+  })
   public String getBalancesForMonth(final ModelMap model,
       @PathVariable("accountName") String accountName,
       @PathVariable(value = "month", required = false) String month,
@@ -36,13 +42,13 @@ public class AccountController {
 
     List<Balance> balances = accountService.getBalancesAcrossDates(accountName, month, year);
     model.addAttribute("balances", balances);
-    return "views/accounts/templates/monthly";
+    return "accounts/monthly";
   }
 
   @GetMapping(value = {
-      "/accounts/get",
-      "/accounts/get/{month}",
-      "/accounts/get/{month}/{year}"
+      "/budget/get",
+      "/budget/get/{month}",
+      "/budget/get/{month}/{year}"
   })
   public String getMonthlyBudget(final ModelMap model,
       @PathVariable(value = "month", required = false) String month,
@@ -68,6 +74,20 @@ public class AccountController {
     model.addAttribute("balances", balances);
     model.addAttribute("dates", dates);
 
-    return "views/accounts/templates/budget";
+    return "accounts/budget";
+  }
+
+  @GetMapping(value = {
+      "/budget/nav"
+  })
+  public String getNextMonthlyBudget(final ModelMap model,
+      final NavigationRequestBody body) {
+    LocalDate date = body.getDate();
+    if (NavigationDirection.NEXT.equals(body.getDirection())) {
+      date = date.plusDays(1);
+    } else if (NavigationDirection.PREVIOUS.equals(body.getDirection())) {
+      date = date.minusDays(1);
+    }
+    return getMonthlyBudget(model, date.getMonth().name(), date.getYear());
   }
 }
