@@ -76,6 +76,12 @@ project.ext {
             "-Dspring.h2.console.path=/h2-console",
             "-Dspring.h2.console.enabled=true"
     ]
+    persistDbArgs = [
+            "-Dspring.jpa-show-sql=true",
+            "-Dspring.datasource.url=jdbc:h2:file:./data/sample",
+            "-Dspring.h2.console.path=/h2-console",
+            "-Dspring.h2.console.enabled=true"
+    ]
 }
 
-applicationDefaultJvmArgs = project.baseJvmArgs + project.localDbArgs
+applicationDefaultJvmArgs = project.baseJvmArgs + project.persistDbArgs

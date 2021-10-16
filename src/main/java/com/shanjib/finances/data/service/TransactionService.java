@@ -63,7 +63,6 @@ public class TransactionService {
         .transactionType(TransactionType.getEnum(body.getTransactionType()))
         .build();
 
-    account.getTransactions().add(transaction);
     accountRepo.save(account);
     accountRepo.refresh(account);
 

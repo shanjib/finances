@@ -10,7 +10,7 @@
   <span th:text="${errorMsg}"></span>
 </p>
 
-<a th:href="@{/accounts}">
+<a th:href="@{/accounts/get}">
   This month Budget
 </a>
 
@@ -31,7 +31,7 @@
       </a>
     </td>
     <td >
-      <a th:href="@{/accounts/get/{accountName}/may(accountName=${account.name})}">
+      <a th:href="@{/accounts/get/{accountName}(accountName=${account.name})}">
         This month
       </a>
     </td>

@@ -1,17 +1,13 @@
 package com.shanjib.finances.rest;
 
 import com.shanjib.finances.data.model.Account;
-import com.shanjib.finances.data.model.Balance;
 import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
 import com.shanjib.finances.data.service.TransactionService;
 import com.shanjib.finances.rest.model.TransactionRequestBody;
 import com.shanjib.finances.utils.DateHelper;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -23,57 +19,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 @AllArgsConstructor
 @Controller
 @ControllerAdvice
-public class WebController {
+public class TransactionController {
 
   private AccountService accountService;
   private TransactionService transactionService;
-
-  @GetMapping("/")
-  public String home(final ModelMap model) {
-    model.addAttribute("accounts", accountService.getAllAccounts());
-    return "home";
-  }
-
-  @GetMapping("/accounts/{accountName}/{month}")
-  public String getBalancesForMonth(final ModelMap model,
-      @PathVariable("accountName") String accountName, @PathVariable("month") String month) {
-
-    List<Balance> balances = accountService.getBalancesAcrossDates(accountName, month, 2021);
-    model.addAttribute("balances", balances);
-    return "views/accounts/templates/monthly";
-  }
-
-  @GetMapping(value = {
-      "/accounts",
-      "/accounts/{month}",
-      "/accounts/{month}/{year}"
-  })
-  public String getAllBalancesForMonth(final ModelMap model,
-      @PathVariable(value = "month", required = false) String month,
-      @PathVariable(value = "year", required = false) Integer year) {
-
-    if (year == null) {
-      year = LocalDate.now().getYear();
-    }
-    if (month == null) {
-      month = LocalDate.now().getMonth().name();
-    }
-
-    LinkedHashMap<Account, List<Balance>> balances = accountService
-        .getBalancesForAllAccountsAcrossDates(month, year);
-
-    List<LocalDate> dates = balances.values()
-        .iterator()
-        .next()
-        .stream()
-        .map(Balance::getDate)
-        .collect(Collectors.toList());
-
-    model.addAttribute("balances", balances);
-    model.addAttribute("dates", dates);
-
-    return "views/accounts/templates/budget";
-  }
 
   @GetMapping(value = {
       "/transactions/get/{accountName}",

@@ -1,56 +1,22 @@
 package com.shanjib.finances.rest;
 
-import com.shanjib.finances.data.model.Account;
-import com.shanjib.finances.data.model.Transaction;
 import com.shanjib.finances.data.service.AccountService;
-import com.shanjib.finances.data.service.TransactionService;
-import com.shanjib.finances.rest.model.AccountRequestBody;
-import com.shanjib.finances.rest.model.TransactionRequestBody;
-import java.math.BigDecimal;
-import java.util.List;
 import lombok.AllArgsConstructor;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @AllArgsConstructor
-@RestController
+@Controller
+@ControllerAdvice
 public class DataController {
 
   private AccountService accountService;
-  private TransactionService transactionService;
 
-  @RequestMapping(path = "/account/add")
-  public String addAccount(@RequestBody final AccountRequestBody body) {
-    if (accountService.addAccount(body)) {
-      return "Successfully created account " + body.getName();
-    } else {
-      return "Failed to create account " + body.toString();
-    }
-  }
-
-  @RequestMapping(path = "/account/get")
-  public Account getAccount(@RequestParam final String name) {
-    return accountService.getAccount(name);
-  }
-
-  @RequestMapping(path = "/account/get/balance")
-  public BigDecimal getAccountBalance(@RequestParam final String name) {
-    return accountService.getBalance(name);
-  }
-
-  @RequestMapping(path = "/transaction/post")
-  public String addTransaction(final TransactionRequestBody body) {
-    if (transactionService.addTransaction(body)) {
-      return "Successfully added transaction for " + body.getDescription();
-    } else {
-      return "Failed to add transaction to account " + body.getAccountName();
-    }
-  }
-
-  @RequestMapping(path = "/transaction/get")
-  public List<Transaction> getTransactions(@RequestParam final String name) {
-    return transactionService.getTransactionsByAccount(name);
+  @GetMapping("/")
+  public String home(final ModelMap model) {
+    model.addAttribute("accounts", accountService.getAllAccounts());
+    return "home";
   }
 }
