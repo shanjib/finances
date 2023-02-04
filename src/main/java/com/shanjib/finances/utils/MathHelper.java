@@ -2,11 +2,11 @@ package com.shanjib.finances.utils;
 
 import com.shanjib.finances.data.model.Transaction;
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Collection;
 
 public class MathHelper {
 
-  public static BigDecimal addTransaction(final BigDecimal initialAmount, final List<Transaction> txns) {
+  public static BigDecimal addTransaction(final BigDecimal initialAmount, final Collection<Transaction> txns) {
     BigDecimal balance = initialAmount;
     for (Transaction txn : txns) {
       balance = addTransaction(balance, txn);

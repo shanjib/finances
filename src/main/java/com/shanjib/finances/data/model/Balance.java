@@ -5,7 +5,7 @@ import static com.shanjib.finances.utils.MathHelper.addTransaction;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +17,7 @@ public class Balance {
   private String accountName;
   private LocalDate date;
   private BigDecimal balance;
-  private List<Transaction> transactions;
+  private Collection<Transaction> transactions;
 
   public BigDecimal getTotalTransactionAmount() {
     BigDecimal totalAmount = BigDecimal.ZERO;
