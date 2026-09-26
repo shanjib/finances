@@ -1,0 +1,4 @@
+id,date,account,type,amount,counterparty,category,description,created_at
+1,2026-01-01,checking,opening_balance,0.00,,,,2026-01-01T00:00:00.000Z
+2,2026-01-01,savings,opening_balance,0.00,,,,2026-01-01T00:00:00.000Z
+3,2026-01-01,credit_card,opening_balance,0.00,,,,2026-01-01T00:00:00.000Z

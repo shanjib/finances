@@ -1,0 +1,24 @@
+{
+  "next_id": 7,
+  "account_order": [
+    "checking",
+    "savings",
+    "credit_card"
+  ],
+  "categories": [
+    "groceries",
+    "salary",
+    "utilities",
+    "dining",
+    "transfer",
+    "misc"
+  ],
+  "types": [
+    "expense",
+    "income",
+    "transfer",
+    "cc_payment",
+    "opening_balance"
+  ],
+  "theme": "light"
+}
