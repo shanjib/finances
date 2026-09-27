@@ -40,12 +40,14 @@
                 />
               </td>
               <td>
-                <input
+                <select
                   v-if="needsCounterparty(editForm.type)"
                   v-model="editForm.counterparty"
                   :class="{ error: errors.counterparty }"
-                  placeholder="account"
-                />
+                >
+                  <option value="">— select account —</option>
+                  <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
+                </select>
                 <span v-else class="muted">—</span>
               </td>
               <td>
@@ -95,12 +97,14 @@
               />
             </td>
             <td>
-              <input
+              <select
                 v-if="needsCounterparty(newForm.type)"
                 v-model="newForm.counterparty"
                 :class="{ error: newErrors.counterparty }"
-                placeholder="account"
-              />
+              >
+                <option value="">— select account —</option>
+                <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
+              </select>
               <span v-else class="muted">—</span>
             </td>
             <td>
@@ -168,6 +172,11 @@ const emit = defineEmits<{
 }>()
 
 const { meta, addCategory, addType } = useMeta()
+
+const allAccounts = computed(() => [
+  ...meta.value.account_order,
+  ...(meta.value.hidden_accounts || []).filter(a => !meta.value.account_order.includes(a)),
+])
 const { fetchTransactionsForDay, createTransaction, updateTransaction, deleteTransaction } = useTransactions()
 
 const transactions = ref<Transaction[]>([])

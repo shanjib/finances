@@ -56,6 +56,23 @@ async function init() {
   } else {
     state.activeTransactions = await readCSV(activeCSVPath)
     console.log(`Loaded ${state.activeTransactions.length} transactions from active.csv`)
+
+    // Auto-populate account_order from CSV if it's empty
+    if (state.meta.account_order.length === 0) {
+      const seen = new Set()
+      const ordered = []
+      for (const tx of state.activeTransactions) {
+        if (tx.account && !seen.has(tx.account)) {
+          seen.add(tx.account)
+          ordered.push(tx.account)
+        }
+      }
+      if (ordered.length > 0) {
+        state.meta.account_order = ordered
+        await state.saveMeta()
+        console.log(`Auto-populated account_order with ${ordered.length} accounts from active.csv`)
+      }
+    }
   }
 }
 

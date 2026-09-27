@@ -62,7 +62,7 @@
               <td><input type="date" v-model="editForm.date" /></td>
               <td>
                 <select v-model="editForm.account">
-                  <option v-for="a in meta.account_order" :key="a" :value="a">{{ a }}</option>
+                  <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
                 </select>
               </td>
               <td>
@@ -72,7 +72,10 @@
               </td>
               <td><input type="number" step="0.01" v-model="editForm.amount" /></td>
               <td>
-                <input v-if="needsCounterparty(editForm.type)" v-model="editForm.counterparty" placeholder="account" />
+                <select v-if="needsCounterparty(editForm.type)" v-model="editForm.counterparty">
+                  <option value="">— select account —</option>
+                  <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
+                </select>
                 <span v-else class="muted">—</span>
               </td>
               <td>
@@ -111,7 +114,7 @@
             <td><input type="date" v-model="newForm.date" /></td>
             <td>
               <select v-model="newForm.account">
-                <option v-for="a in meta.account_order" :key="a" :value="a">{{ a }}</option>
+                <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
               </select>
             </td>
             <td>
@@ -121,7 +124,10 @@
             </td>
             <td><input type="number" step="0.01" v-model="newForm.amount" ref="newAmountInput" /></td>
             <td>
-              <input v-if="needsCounterparty(newForm.type)" v-model="newForm.counterparty" placeholder="account" />
+              <select v-if="needsCounterparty(newForm.type)" v-model="newForm.counterparty">
+                <option value="">— select account —</option>
+                <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
+              </select>
               <span v-else class="muted">—</span>
             </td>
             <td>
@@ -162,6 +168,11 @@ import { useTransactions, type Transaction } from '../composables/useTransaction
 
 const { meta } = useMeta()
 const { createTransaction, updateTransaction, deleteTransaction } = useTransactions()
+
+const allAccounts = computed(() => [
+  ...meta.value.account_order,
+  ...(meta.value.hidden_accounts || []).filter(a => !meta.value.account_order.includes(a)),
+])
 
 const today = new Date().toISOString().slice(0, 10)
 const firstOfMonth = today.slice(0, 7) + '-01'
