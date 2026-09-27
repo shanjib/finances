@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import TransactionPopup from './TransactionPopup.vue'
 import { useTransactions } from '../composables/useTransactions'
 
@@ -158,8 +158,25 @@ watch([currentYear, currentMonth], () => {
   fetchMonthly(currentYear.value, currentMonth.value)
 })
 
+function onHomeNav(e: Event) {
+  const dir = (e as CustomEvent).detail
+  if (dir === 'prev') prevMonth()
+  else if (dir === 'next') nextMonth()
+}
+
+function onPopupEscape() {
+  popup.value = null
+}
+
 onMounted(() => {
   fetchMonthly(currentYear.value, currentMonth.value)
+  document.addEventListener('home-nav', onHomeNav)
+  document.addEventListener('popup-escape', onPopupEscape)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('home-nav', onHomeNav)
+  document.removeEventListener('popup-escape', onPopupEscape)
 })
 </script>
 

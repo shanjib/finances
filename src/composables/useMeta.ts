@@ -3,14 +3,16 @@ import { ref, computed } from 'vue'
 interface Meta {
   next_id: number
   account_order: string[]
+  hidden_accounts: string[]
   categories: string[]
   types: string[]
-  theme: 'light' | 'dark' | 'warm'
+  theme: 'light' | 'dark' | 'warm' | null
 }
 
 const meta = ref<Meta>({
   next_id: 1,
   account_order: [],
+  hidden_accounts: [],
   categories: [],
   types: [],
   theme: 'light',
@@ -21,7 +23,9 @@ async function fetchMeta() {
   loading.value = true
   try {
     const res = await fetch('/api/meta')
-    meta.value = await res.json()
+    const data = await res.json()
+    if (!data.hidden_accounts) data.hidden_accounts = []
+    meta.value = data
   } finally {
     loading.value = false
   }
@@ -29,6 +33,11 @@ async function fetchMeta() {
 
 function applyTheme(theme: string) {
   document.documentElement.setAttribute('data-theme', theme)
+}
+
+function detectSystemTheme(): 'light' | 'dark' {
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
 }
 
 async function setTheme(theme: 'light' | 'dark' | 'warm') {
@@ -78,9 +87,51 @@ async function deleteType(value: string) {
   meta.value.types = await res.json()
 }
 
+async function renameAccount(oldName: string, newName: string) {
+  const res = await fetch('/api/meta/accounts/rename', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldName, newName }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error)
+  // Refresh meta
+  await fetchMeta()
+  return data
+}
+
+async function setAccountVisibility(name: string, visible: boolean) {
+  const res = await fetch(`/api/meta/accounts/${encodeURIComponent(name)}/visibility`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visible }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error)
+  await fetchMeta()
+  return data
+}
+
+async function createAccount(name: string, openingBalance: number, date: string) {
+  const res = await fetch('/api/accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, openingBalance, date }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error)
+  await fetchMeta()
+  return data
+}
+
 // Auto-fetch on first use; apply theme to root element
 fetchMeta().then(() => {
-  applyTheme(meta.value.theme)
+  if (!meta.value.theme) {
+    const detected = detectSystemTheme()
+    setTheme(detected)
+  } else {
+    applyTheme(meta.value.theme)
+  }
 })
 
 export function useMeta() {
@@ -95,5 +146,8 @@ export function useMeta() {
     deleteCategory,
     addType,
     deleteType,
+    renameAccount,
+    setAccountVisibility,
+    createAccount,
   }
 }

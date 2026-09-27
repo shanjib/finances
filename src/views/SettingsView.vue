@@ -18,11 +18,13 @@
       </div>
     </section>
 
-    <!-- Account Order -->
+    <!-- Accounts -->
     <section class="settings-section">
-      <h2>Account Order</h2>
-      <p class="hint">Drag to reorder. Accounts are created by adding an opening_balance transaction.</p>
-      <ul class="drag-list" ref="accountListEl">
+      <h2>Accounts</h2>
+
+      <h3 class="sub-heading">Active</h3>
+      <p class="hint">Drag to reorder. Visible in the monthly grid and reports.</p>
+      <ul class="drag-list" v-if="meta.account_order.length">
         <li
           v-for="(acct, i) in localAccountOrder"
           :key="acct"
@@ -34,12 +36,90 @@
           @dragend="onDragEnd"
         >
           <span class="drag-handle">⠿</span>
-          {{ acct }}
+          <template v-if="renamingAccount === acct">
+            <input
+              class="rename-input"
+              v-model="renameValue"
+              @keydown.enter="confirmRename(acct)"
+              @keydown.escape="renamingAccount = null"
+              ref="renameInputRef"
+            />
+            <span v-if="renameError" class="inline-error">{{ renameError }}</span>
+            <button class="icon-btn" @click="confirmRename(acct)" title="Save">✓</button>
+            <button class="icon-btn" @click="renamingAccount = null" title="Cancel">✕</button>
+          </template>
+          <template v-else>
+            <span class="acct-name">{{ acct }}</span>
+            <button class="icon-btn" @click="startRename(acct)" title="Rename">✏️</button>
+            <button class="icon-btn" @click="hideAccount(acct)" title="Hide">👁️</button>
+          </template>
         </li>
       </ul>
+      <p v-else class="hint">No active accounts.</p>
       <button class="btn" style="margin-top:10px" @click="saveAccountOrder" :disabled="savingOrder">
         Save Order
       </button>
+
+      <h3 class="sub-heading" style="margin-top:20px">Hidden</h3>
+      <p class="hint">Hidden accounts are excluded from the grid and reports. Their transaction data is preserved.</p>
+      <ul class="drag-list" v-if="meta.hidden_accounts && meta.hidden_accounts.length">
+        <li
+          v-for="acct in meta.hidden_accounts"
+          :key="acct"
+          class="drag-item hidden-item"
+        >
+          <template v-if="renamingAccount === acct">
+            <input
+              class="rename-input"
+              v-model="renameValue"
+              @keydown.enter="confirmRename(acct)"
+              @keydown.escape="renamingAccount = null"
+            />
+            <span v-if="renameError" class="inline-error">{{ renameError }}</span>
+            <button class="icon-btn" @click="confirmRename(acct)" title="Save">✓</button>
+            <button class="icon-btn" @click="renamingAccount = null" title="Cancel">✕</button>
+          </template>
+          <template v-else>
+            <span class="acct-name muted">{{ acct }}</span>
+            <button class="icon-btn" @click="startRename(acct)" title="Rename">✏️</button>
+            <button class="icon-btn" @click="showAccount(acct)" title="Show">👁️</button>
+          </template>
+        </li>
+      </ul>
+      <p v-else class="hint">No hidden accounts.</p>
+
+      <!-- Rename success/summary message -->
+      <div v-if="renameResult" class="success-msg">
+        Renamed: {{ renameResult.rowsUpdated }} rows updated across {{ renameResult.filesUpdated }} file(s).
+        <button class="icon-btn" @click="renameResult = null">×</button>
+      </div>
+
+      <!-- Add Account -->
+      <div v-if="!showAddAccount">
+        <button class="btn btn-ghost" style="margin-top:16px" @click="showAddAccount = true">+ Add Account</button>
+      </div>
+      <div v-else class="add-account-form">
+        <h3 class="sub-heading">New Account</h3>
+        <div class="form-row">
+          <label>Name</label>
+          <input v-model="newAcctName" placeholder="Account name" />
+          <span v-if="newAcctErrors.name" class="inline-error">{{ newAcctErrors.name }}</span>
+        </div>
+        <div class="form-row">
+          <label>Opening Balance</label>
+          <input type="number" step="0.01" v-model="newAcctBalance" placeholder="0.00" />
+          <span v-if="newAcctErrors.balance" class="inline-error">{{ newAcctErrors.balance }}</span>
+        </div>
+        <div class="form-row">
+          <label>Date</label>
+          <input type="date" v-model="newAcctDate" />
+          <span v-if="newAcctErrors.date" class="inline-error">{{ newAcctErrors.date }}</span>
+        </div>
+        <div class="form-actions">
+          <button class="btn" @click="saveNewAccount" :disabled="savingAccount">Save</button>
+          <button class="btn btn-ghost" @click="cancelAddAccount">Cancel</button>
+        </div>
+      </div>
     </section>
 
     <!-- Categories -->
@@ -103,11 +183,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { useMeta } from '../composables/useMeta'
 
-const { meta, setTheme, setAccountOrder, addCategory, deleteCategory, addType, deleteType } = useMeta()
+const {
+  meta, setTheme, setAccountOrder, addCategory, deleteCategory, addType, deleteType,
+  renameAccount, setAccountVisibility, createAccount,
+} = useMeta()
 
 async function handleTheme(t: 'light' | 'dark' | 'warm') {
   await setTheme(t)
@@ -138,6 +221,80 @@ async function saveAccountOrder() {
     await setAccountOrder([...localAccountOrder.value])
   } finally {
     savingOrder.value = false
+  }
+}
+
+// Rename
+const renamingAccount = ref<string | null>(null)
+const renameValue = ref('')
+const renameError = ref('')
+const renameResult = ref<{ rowsUpdated: number; filesUpdated: number } | null>(null)
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
+function startRename(acct: string) {
+  renamingAccount.value = acct
+  renameValue.value = acct
+  renameError.value = ''
+  nextTick(() => renameInputRef.value?.focus())
+}
+
+async function confirmRename(oldName: string) {
+  renameError.value = ''
+  const newName = renameValue.value.trim()
+  if (!newName) { renameError.value = 'Name cannot be empty'; return }
+  if (newName === oldName) { renamingAccount.value = null; return }
+  try {
+    const result = await renameAccount(oldName, newName)
+    renameResult.value = result
+    renamingAccount.value = null
+  } catch (e: any) {
+    renameError.value = e.message
+  }
+}
+
+// Hide/show
+async function hideAccount(name: string) {
+  await setAccountVisibility(name, false)
+}
+
+async function showAccount(name: string) {
+  await setAccountVisibility(name, true)
+}
+
+// Add account
+const showAddAccount = ref(false)
+const newAcctName = ref('')
+const newAcctBalance = ref('')
+const newAcctDate = ref(new Date().toISOString().slice(0, 10))
+const newAcctErrors = ref({ name: '', balance: '', date: '' })
+const savingAccount = ref(false)
+
+function cancelAddAccount() {
+  showAddAccount.value = false
+  newAcctName.value = ''
+  newAcctBalance.value = ''
+  newAcctDate.value = new Date().toISOString().slice(0, 10)
+  newAcctErrors.value = { name: '', balance: '', date: '' }
+}
+
+async function saveNewAccount() {
+  newAcctErrors.value = { name: '', balance: '', date: '' }
+  let valid = true
+  if (!newAcctName.value.trim()) { newAcctErrors.value.name = 'Required'; valid = false }
+  if (newAcctBalance.value === '' || isNaN(parseFloat(newAcctBalance.value))) {
+    newAcctErrors.value.balance = 'Required'; valid = false
+  }
+  if (!newAcctDate.value) { newAcctErrors.value.date = 'Required'; valid = false }
+  if (!valid) return
+
+  savingAccount.value = true
+  try {
+    await createAccount(newAcctName.value.trim(), parseFloat(newAcctBalance.value), newAcctDate.value)
+    cancelAddAccount()
+  } catch (e: any) {
+    newAcctErrors.value.name = e.message
+  } finally {
+    savingAccount.value = false
   }
 }
 
@@ -200,6 +357,13 @@ h2 {
   margin-bottom: 10px;
 }
 
+.sub-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
 .hint {
   font-size: 12px;
   color: var(--text-muted);
@@ -259,6 +423,74 @@ h2 {
 .drag-handle {
   color: var(--text-muted);
   font-size: 16px;
+}
+
+.hidden-item {
+  cursor: default;
+}
+
+.acct-name {
+  flex: 1;
+}
+
+.acct-name.muted {
+  color: var(--text-muted);
+}
+
+.rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.success-msg {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-account-form {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.form-row label {
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.form-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .tag-list {

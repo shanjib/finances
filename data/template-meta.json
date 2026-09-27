@@ -1,0 +1,23 @@
+{
+  "next_id": 1,
+  "account_order": [],
+  "hidden_accounts": [],
+  "categories": [
+    "groceries",
+    "dining",
+    "utilities",
+    "transport",
+    "entertainment",
+    "healthcare",
+    "salary",
+    "misc"
+  ],
+  "types": [
+    "expense",
+    "income",
+    "transfer",
+    "cc_payment",
+    "opening_balance"
+  ],
+  "theme": null
+}

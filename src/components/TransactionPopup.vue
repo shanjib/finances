@@ -37,7 +37,6 @@
                   step="0.01"
                   v-model="editForm.amount"
                   :class="{ error: errors.amount }"
-                  style="width:80px"
                 />
               </td>
               <td>
@@ -46,7 +45,6 @@
                   v-model="editForm.counterparty"
                   :class="{ error: errors.counterparty }"
                   placeholder="account"
-                  style="width:90px"
                 />
                 <span v-else class="muted">—</span>
               </td>
@@ -58,7 +56,7 @@
                 </select>
               </td>
               <td>
-                <input v-model="editForm.description" style="width:120px" @keydown.enter="saveEdit(tx.id)" />
+                <input v-model="editForm.description" @keydown.enter="saveEdit(tx.id)" />
               </td>
               <td class="tx-actions">
                 <button class="icon-btn" @click="saveEdit(tx.id)" title="Save">✓</button>
@@ -72,6 +70,7 @@
               <td>{{ tx.category || '—' }}</td>
               <td>{{ tx.description || '—' }}</td>
               <td class="tx-actions">
+                <button class="icon-btn" @click="duplicateTx(tx)" title="Duplicate">📋</button>
                 <button class="icon-btn" @click="startEdit(tx)" title="Edit">✏️</button>
                 <button class="icon-btn" @click="confirmDelete(tx.id)" title="Delete">🗑️</button>
               </td>
@@ -92,7 +91,6 @@
                 step="0.01"
                 v-model="newForm.amount"
                 :class="{ error: newErrors.amount }"
-                style="width:80px"
                 ref="amountInput"
               />
             </td>
@@ -102,7 +100,6 @@
                 v-model="newForm.counterparty"
                 :class="{ error: newErrors.counterparty }"
                 placeholder="account"
-                style="width:90px"
               />
               <span v-else class="muted">—</span>
             </td>
@@ -114,7 +111,7 @@
               </select>
             </td>
             <td>
-              <input v-model="newForm.description" style="width:120px" @keydown.enter="saveNew" />
+              <input v-model="newForm.description" @keydown.enter="saveNew" />
             </td>
             <td class="tx-actions">
               <button class="icon-btn" @click="saveNew" title="Save">✓</button>
@@ -190,15 +187,17 @@ const deleteTargetId = ref<number | null>(null)
 const addingNewMeta = ref<{ field: 'category' | 'type', value: string, target: 'edit' | 'new' } | null>(null)
 
 // Popup positioning
+const isEditing = computed(() => editingId.value !== null || editingNew.value)
+
 const popupStyle = computed(() => {
   const rect = props.anchorRect
   const vpW = window.innerWidth
   const vpH = window.innerHeight
-  const popW = 640
-  const popH = 400
+  const popW = isEditing.value ? 780 : 640
 
   let left: number
-  let top = Math.min(rect.bottom + 4, vpH - popH - 8)
+  let top = rect.bottom + 4
+  if (top + 400 > vpH - 8) top = vpH - 400 - 8
   if (top < 8) top = 8
 
   if (rect.left < vpW / 2) {
@@ -206,6 +205,7 @@ const popupStyle = computed(() => {
   } else {
     left = Math.max(rect.left - popW - 4, 8)
   }
+  left = Math.max(8, Math.min(left, vpW - popW - 8))
 
   return {
     position: 'fixed' as const,
@@ -369,6 +369,20 @@ function handleBackdropClick() {
     emit('close')
   }
 }
+
+function duplicateTx(tx: Transaction) {
+  editingNew.value = true
+  Object.assign(newForm, {
+    type: tx.type,
+    amount: String(tx.amount),
+    counterparty: tx.counterparty,
+    category: tx.category,
+    description: tx.description,
+  })
+  newErrors.type = false
+  newErrors.amount = false
+  newErrors.counterparty = false
+}
 </script>
 
 <style scoped>
@@ -382,10 +396,12 @@ function handleBackdropClick() {
   background: var(--popup-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: var(--popup-shadow);
   display: flex;
   flex-direction: column;
+  transition: width 0.15s;
 }
 
 .popup-header {
@@ -419,6 +435,13 @@ function handleBackdropClick() {
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
   flex: 1;
+  table-layout: fixed;
+}
+
+.tx-table td input,
+.tx-table td select {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tx-table th {

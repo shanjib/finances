@@ -4,6 +4,8 @@
       <span class="topbar-title">Budget Tracker</span>
       <div class="topbar-links">
         <RouterLink to="/">Home</RouterLink>
+        <RouterLink to="/log">Transaction Log</RouterLink>
+        <RouterLink to="/reports">Reports</RouterLink>
         <RouterLink to="/settings">Settings</RouterLink>
       </div>
     </nav>
@@ -12,10 +14,37 @@
 </template>
 
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { onMounted, onUnmounted } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useMeta } from './composables/useMeta'
 
-useMeta()
+const { meta, setTheme } = useMeta()
+const router = useRouter()
+
+// System theme auto-detect on first load (only if theme not yet set in meta)
+// Applied after meta loads in useMeta.ts
+
+function onKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+  if (isInput) return
+
+  const route = router.currentRoute.value.path
+  if (route === '/') {
+    if (e.key === 'ArrowLeft') {
+      router.app?.config.globalProperties?.$emit?.('nav-prev')
+      document.dispatchEvent(new CustomEvent('home-nav', { detail: 'prev' }))
+    } else if (e.key === 'ArrowRight') {
+      document.dispatchEvent(new CustomEvent('home-nav', { detail: 'next' }))
+    }
+  }
+  if (e.key === 'Escape') {
+    document.dispatchEvent(new CustomEvent('popup-escape'))
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>

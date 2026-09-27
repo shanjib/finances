@@ -139,6 +139,7 @@ dist/
 
 # Financial data — never commit real data
 data/active.csv
+data/meta.json
 data/archive/
 !data/archive/.gitkeep
 !data/.gitkeep
