@@ -2,9 +2,9 @@
   <div class="grid-wrapper">
     <!-- Month nav -->
     <div class="month-nav">
-      <button class="nav-btn" @click="prevMonth">‹</button>
+      <button class="nav-btn nav-prev" @click="prevMonth">‹ {{ prevMonthLabel }}</button>
       <span class="month-label">{{ monthLabel }}</span>
-      <button class="nav-btn" @click="nextMonth">›</button>
+      <button class="nav-btn nav-next" @click="nextMonth">{{ nextMonthLabel }} ›</button>
     </div>
 
     <div v-if="loading" class="loading">Loading…</div>
@@ -18,14 +18,14 @@
               v-for="acct in snapshot.accounts"
               :key="acct"
               colspan="2"
-              class="account-header"
+              class="account-header acct-start"
             >
               {{ acct }}
             </th>
           </tr>
           <tr>
             <template v-for="acct in snapshot.accounts" :key="acct">
-              <th class="sub-header">Start</th>
+              <th class="sub-header acct-start">Start</th>
               <th class="sub-header">Delta</th>
             </template>
           </tr>
@@ -38,7 +38,7 @@
           >
             <td class="date-cell">{{ formatDateLabel(row.date) }}</td>
             <template v-for="acct in snapshot.accounts" :key="acct">
-              <td class="amount-td start-of-day" :class="valueClass(row.cells[acct]?.startOfDay)">
+              <td class="amount-td start-of-day acct-start" :class="valueClass(row.cells[acct]?.startOfDay)">
                 <span class="dollar">$</span>
                 <span class="value">{{ formatNumber(row.cells[acct]?.startOfDay ?? 0) }}</span>
               </td>
@@ -91,6 +91,18 @@ const monthLabel = computed(() => {
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 })
 
+const prevMonthLabel = computed(() => {
+  const m = currentMonth.value === 1 ? 12 : currentMonth.value - 1
+  const y = currentMonth.value === 1 ? currentYear.value - 1 : currentYear.value
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })
+})
+
+const nextMonthLabel = computed(() => {
+  const m = currentMonth.value === 12 ? 1 : currentMonth.value + 1
+  const y = currentMonth.value === 12 ? currentYear.value + 1 : currentYear.value
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })
+})
+
 function prevMonth() {
   if (currentMonth.value === 1) {
     currentMonth.value = 12
@@ -113,8 +125,8 @@ function formatDateLabel(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00')
   const day = d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3)
   const month = d.toLocaleDateString('en-US', { month: 'short' }).slice(0, 3)
-  const date = d.getDate()
-  return `${day} ${month} ${String(date).padStart(2, ' ')}`
+  const date = String(d.getDate()).padStart(2, '0')
+  return `${day} ${month} ${date}`
 }
 
 function formatNumber(val: number): string {
@@ -157,31 +169,38 @@ onMounted(() => {
 }
 
 .month-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 12px;
   margin-bottom: 16px;
 }
 
 .nav-btn {
-  font-size: 20px;
-  padding: 0 8px;
+  font-size: 13px;
+  padding: 4px 10px;
   color: var(--accent);
   background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
-  line-height: 1.6;
+  white-space: nowrap;
 }
 
 .nav-btn:hover {
   background: var(--surface);
 }
 
+.nav-prev {
+  justify-self: start;
+}
+
+.nav-next {
+  justify-self: end;
+}
+
 .month-label {
   font-size: 16px;
   font-weight: 600;
-  min-width: 160px;
   text-align: center;
 }
 
@@ -209,6 +228,7 @@ onMounted(() => {
 }
 
 .grid-table th {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--header-bg);
   color: var(--text-muted);
   font-size: 11px;
@@ -222,6 +242,10 @@ onMounted(() => {
   text-align: center;
   font-weight: 600;
   color: var(--text) !important;
+}
+
+.acct-start {
+  border-left: 2px solid var(--account-divider) !important;
 }
 
 .sub-header {
