@@ -392,6 +392,20 @@ function duplicateTx(tx: Transaction) {
   newErrors.amount = false
   newErrors.counterparty = false
 }
+
+// Auto-fill amount with current balance when cc_payment counterparty is selected
+watch(
+  () => [newForm.type, newForm.counterparty] as const,
+  async ([type, counterparty]) => {
+    if (type === 'cc_payment' && counterparty && !newForm.amount) {
+      const res = await fetch(`/api/balance/${encodeURIComponent(counterparty)}`)
+      const data = await res.json()
+      if (data.balance < 0) {
+        newForm.amount = String(Math.abs(data.balance))
+      }
+    }
+  }
+)
 </script>
 
 <style scoped>

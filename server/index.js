@@ -3,7 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
 import { readCSV, writeCSV, appendRowCSV } from './csv.js'
-import { computeMonthlySnapshot } from './engine.js'
+import { computeMonthlySnapshot, computeRunningBalances } from './engine.js'
 import { createTransactionsRouter } from './routes/transactions.js'
 import { createMetaRouter } from './routes/meta.js'
 import { createRolloverRouter } from './routes/rollover.js'
@@ -126,6 +126,14 @@ app.post('/api/accounts', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+// Current balance for a single account
+app.get('/api/balance/:account', (req, res) => {
+  const account = decodeURIComponent(req.params.account)
+  const today = new Date().toISOString().slice(0, 10)
+  const balances = computeRunningBalances(state.activeTransactions, today)
+  res.json({ account, balance: balances[account] ?? 0 })
 })
 
 // Reports API

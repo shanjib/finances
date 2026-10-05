@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { useMeta } from '../composables/useMeta'
 import { useTransactions, type Transaction } from '../composables/useTransactions'
@@ -368,6 +368,20 @@ async function executeDelete() {
 }
 
 onMounted(() => loadRows())
+
+// Auto-fill amount with current balance when cc_payment counterparty is selected
+watch(
+  () => [newForm.type, newForm.counterparty] as const,
+  async ([type, counterparty]) => {
+    if (type === 'cc_payment' && counterparty && !newForm.amount) {
+      const res = await fetch(`/api/balance/${encodeURIComponent(counterparty)}`)
+      const data = await res.json()
+      if (data.balance < 0) {
+        newForm.amount = String(Math.abs(data.balance))
+      }
+    }
+  }
+)
 </script>
 
 <style scoped>
