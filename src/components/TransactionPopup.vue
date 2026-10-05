@@ -31,13 +31,19 @@
                   <option value="__add__">+ Add new</option>
                 </select>
               </td>
-              <td>
+              <td class="amount-with-refresh">
                 <input
                   type="number"
                   step="0.01"
                   v-model="editForm.amount"
                   :class="{ error: errors.amount }"
                 />
+                <button
+                  v-if="editForm.type === 'cc_payment' && editForm.counterparty"
+                  class="icon-btn refresh-btn"
+                  title="Refresh to current balance"
+                  @click="refreshEditAmount"
+                >↻</button>
               </td>
               <td>
                 <select
@@ -236,6 +242,12 @@ function needsCounterparty(type: string) {
   return type === 'transfer' || type === 'cc_payment'
 }
 
+function dayBefore(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
+
 function formatDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -393,12 +405,23 @@ function duplicateTx(tx: Transaction) {
   newErrors.counterparty = false
 }
 
+async function refreshEditAmount() {
+  if (!editForm.counterparty) return
+  const asOf = dayBefore(props.date)
+  const res = await fetch(`/api/balance/${encodeURIComponent(editForm.counterparty)}?asOf=${asOf}`)
+  const data = await res.json()
+  if (data.balance < 0) {
+    editForm.amount = String(Math.abs(data.balance))
+  }
+}
+
 // Auto-fill amount with current balance when cc_payment counterparty is selected
 watch(
   () => [newForm.type, newForm.counterparty] as const,
   async ([type, counterparty]) => {
     if (type === 'cc_payment' && counterparty && !newForm.amount) {
-      const res = await fetch(`/api/balance/${encodeURIComponent(counterparty)}`)
+      const asOf = dayBefore(props.date)
+      const res = await fetch(`/api/balance/${encodeURIComponent(counterparty)}?asOf=${asOf}`)
       const data = await res.json()
       if (data.balance < 0) {
         newForm.amount = String(Math.abs(data.balance))
@@ -527,6 +550,24 @@ tr.editing td {
 }
 
 .muted {
+  color: var(--text-muted);
+}
+
+.amount-with-refresh {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.amount-with-refresh input {
+  flex: 1;
+  min-width: 0;
+}
+
+.refresh-btn {
+  flex-shrink: 0;
+  font-size: 14px;
+  padding: 0 3px;
   color: var(--text-muted);
 }
 

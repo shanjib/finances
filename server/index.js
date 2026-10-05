@@ -128,11 +128,11 @@ app.post('/api/accounts', async (req, res) => {
   }
 })
 
-// Current balance for a single account
+// Current balance for a single account, optionally as-of a given date
 app.get('/api/balance/:account', (req, res) => {
   const account = decodeURIComponent(req.params.account)
-  const today = new Date().toISOString().slice(0, 10)
-  const balances = computeRunningBalances(state.activeTransactions, today)
+  const asOf = req.query.asOf || new Date().toISOString().slice(0, 10)
+  const balances = computeRunningBalances(state.activeTransactions, asOf)
   res.json({ account, balance: balances[account] ?? 0 })
 })
 
