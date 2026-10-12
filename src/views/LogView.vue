@@ -57,7 +57,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tx in sortedRows" :key="tx.id" :class="{ editing: editingId === tx.id }">
+          <tr
+            v-for="tx in sortedRows"
+            :key="tx.id"
+            :class="{ editing: editingId === tx.id }"
+            @keydown.enter="onRowEnter($event, () => saveEdit(tx.id))"
+          >
             <template v-if="editingId === tx.id">
               <td><input type="date" v-model="editForm.date" /></td>
               <td>
@@ -92,10 +97,10 @@
                   <option v-for="c in meta.categories" :key="c" :value="c">{{ c }}</option>
                 </select>
               </td>
-              <td><input v-model="editForm.description" @keydown.enter="saveEdit(tx.id)" /></td>
+              <td><input v-model="editForm.description" /></td>
               <td class="row-actions">
-                <button class="icon-btn" @click="saveEdit(tx.id)" title="Save">✓</button>
-                <button class="icon-btn" @click="cancelEdit" title="Cancel">✕</button>
+                <button class="icon-btn confirm" @click="saveEdit(tx.id)" title="Save" aria-label="Save">✓</button>
+                <button class="icon-btn cancel" @click="cancelEdit" title="Cancel" aria-label="Cancel">✕</button>
               </td>
             </template>
             <template v-else>
@@ -111,6 +116,7 @@
               <td>{{ tx.description || '—' }}</td>
               <td class="row-actions">
                 <button class="icon-btn" @click="duplicateTx(tx)" title="Duplicate">📋</button>
+                <button class="icon-btn" @click="saveTplTx = tx" title="Save as template">🔖</button>
                 <button class="icon-btn" @click="startEdit(tx)" title="Edit">✏️</button>
                 <button class="icon-btn" @click="confirmDelete(tx.id)" title="Delete">🗑️</button>
               </td>
@@ -118,21 +124,22 @@
           </tr>
 
           <!-- New row -->
-          <tr v-if="editingNewRow" class="editing new-row">
+          <tr v-if="editingNewRow" class="editing new-row" @keydown.enter="onRowEnter($event, () => saveNew(true))">
             <td><input type="date" v-model="newForm.date" /></td>
             <td>
-              <select v-model="newForm.account">
+              <select v-model="newForm.account" :class="{ error: newErrors.account }">
+                <option value="">— select account —</option>
                 <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
               </select>
             </td>
             <td>
-              <select v-model="newForm.type">
+              <select v-model="newForm.type" ref="newTypeSelect">
                 <option v-for="t in meta.types" :key="t" :value="t">{{ t }}</option>
               </select>
             </td>
-            <td><input type="number" step="0.01" v-model="newForm.amount" ref="newAmountInput" /></td>
+            <td><input type="number" step="0.01" v-model="newForm.amount" ref="newAmountInput" :class="{ error: newErrors.amount }" /></td>
             <td>
-              <select v-if="needsCounterparty(newForm.type)" v-model="newForm.counterparty">
+              <select v-if="needsCounterparty(newForm.type)" v-model="newForm.counterparty" :class="{ error: newErrors.counterparty }">
                 <option value="">— select account —</option>
                 <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
               </select>
@@ -144,10 +151,10 @@
                 <option v-for="c in meta.categories" :key="c" :value="c">{{ c }}</option>
               </select>
             </td>
-            <td><input v-model="newForm.description" @keydown.enter="saveNew" /></td>
+            <td><input v-model="newForm.description" /></td>
             <td class="row-actions">
-              <button class="icon-btn" @click="saveNew" title="Save">✓</button>
-              <button class="icon-btn" @click="editingNewRow = false" title="Cancel">✕</button>
+              <button class="icon-btn confirm" @click="saveNew(false)" title="Save" aria-label="Save">✓</button>
+              <button class="icon-btn cancel" @click="editingNewRow = false" title="Cancel" aria-label="Cancel">✕</button>
             </td>
           </tr>
         </tbody>
@@ -156,7 +163,18 @@
       <p v-if="loading" class="empty-msg">Loading…</p>
     </div>
 
-    <button class="btn add-btn" @click="startNew" :disabled="editingNewRow || editingId !== null">+ Add Transaction</button>
+    <div class="add-btn">
+      <TemplateSplitButton
+        ref="splitBtn"
+        label="+ Add Transaction"
+        :disabled="editingNewRow || editingId !== null"
+        :open-up="true"
+        @add="startNew()"
+        @pick="onPickTemplate"
+      />
+    </div>
+
+    <SaveTemplateDialog v-if="saveTplTx" :tx="saveTplTx" @close="saveTplTx = null" />
 
     <ConfirmModal
       v-if="deleteTargetId !== null"
@@ -169,9 +187,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import TemplateSplitButton from '../components/TemplateSplitButton.vue'
+import SaveTemplateDialog from '../components/SaveTemplateDialog.vue'
 import { useMeta } from '../composables/useMeta'
+import { useUI, isTextEntry } from '../composables/useUI'
+import type { Template } from '../composables/useTemplates'
+import { todayLocal, firstOfMonthLocal, dayBefore } from '../utils/date'
 import { useTransactions, type Transaction } from '../composables/useTransactions'
 
 const { meta } = useMeta()
@@ -182,8 +205,9 @@ const allAccounts = computed(() => [
   ...(meta.value.hidden_accounts || []).filter(a => !meta.value.account_order.includes(a)),
 ])
 
-const today = new Date().toISOString().slice(0, 10)
-const firstOfMonth = today.slice(0, 7) + '-01'
+const today = todayLocal()
+const firstOfMonth = firstOfMonthLocal()
+const { keyboardBusy } = useUI()
 
 const filterFrom = ref(firstOfMonth)
 const filterTo = ref(today)
@@ -200,6 +224,11 @@ const editForm = reactive({ date: '', account: '', type: '', amount: '', counter
 const editingNewRow = ref(false)
 const newForm = reactive({ date: today, account: '', type: 'expense', amount: '', counterparty: '', category: '', description: '' })
 const newAmountInput = ref<HTMLInputElement | null>(null)
+const newTypeSelect = ref<HTMLSelectElement | null>(null)
+const newErrors = reactive({ account: false, amount: false, counterparty: false })
+const splitBtn = ref<InstanceType<typeof TemplateSplitButton> | null>(null)
+const saveTplTx = ref<Transaction | null>(null)
+const saving = ref(false)
 
 const deleteTargetId = ref<number | null>(null)
 
@@ -321,33 +350,90 @@ async function saveEdit(id: number) {
   editingId.value = null
 }
 
-function startNew() {
+function startNew(template?: Template, carry?: { date: string; account: string }) {
   editingNewRow.value = true
+  newErrors.account = false
+  newErrors.amount = false
+  newErrors.counterparty = false
   Object.assign(newForm, {
-    date: today,
-    account: meta.value.account_order[0] || '',
+    date: carry?.date ?? today,
+    // Templates never store an account, so it stays blank until the user picks one
+    account: template ? '' : (carry?.account ?? meta.value.account_order[0] ?? ''),
     type: 'expense',
     amount: '',
     counterparty: '',
     category: '',
     description: '',
   })
-  nextTick(() => newAmountInput.value?.focus())
+  if (template) applyTemplate(template)
+  // Auto-advanced rows start on the type dropdown; template rows on the amount
+  nextTick(() => (carry && !template ? newTypeSelect.value : newAmountInput.value)?.focus())
 }
 
-async function saveNew() {
-  if (!newForm.amount || isNaN(parseFloat(newForm.amount))) return
-  const tx = await createTransaction({
-    date: newForm.date,
-    account: newForm.account,
-    type: newForm.type,
-    amount: parseFloat(newForm.amount),
-    counterparty: newForm.counterparty,
-    category: newForm.category,
-    description: newForm.description,
+function applyTemplate(t: Template) {
+  Object.assign(newForm, {
+    type: t.type,
+    amount: String(t.amount),
+    counterparty: t.counterparty,
+    category: t.category,
+    description: t.description,
   })
-  rows.value.push(tx)
-  editingNewRow.value = false
+}
+
+function onPickTemplate(t: Template) {
+  if (editingNewRow.value) {
+    applyTemplate(t)
+    nextTick(() => newAmountInput.value?.focus())
+  } else if (editingId.value !== null) {
+    Object.assign(editForm, {
+      type: t.type,
+      amount: String(t.amount),
+      counterparty: t.counterparty,
+      category: t.category,
+      description: t.description,
+    })
+  } else {
+    startNew(t)
+  }
+}
+
+/** Enter in a row's field saves it (buttons keep their own Enter/click behaviour). */
+function onRowEnter(e: KeyboardEvent, save: () => void) {
+  if ((e.target as HTMLElement).tagName === 'BUTTON') return
+  e.preventDefault()
+  save()
+}
+
+function isBlankNewRow() {
+  return !newForm.amount && !newForm.description && !newForm.counterparty && !newForm.category
+}
+
+async function saveNew(advance = false) {
+  newErrors.account = !newForm.account
+  newErrors.amount = !newForm.amount || isNaN(parseFloat(newForm.amount))
+  newErrors.counterparty = needsCounterparty(newForm.type) && !newForm.counterparty
+  if (newErrors.account || newErrors.amount || newErrors.counterparty) return
+  if (saving.value) return
+
+  saving.value = true
+  const carry = { date: newForm.date, account: newForm.account }
+  try {
+    const tx = await createTransaction({
+      date: newForm.date,
+      account: newForm.account,
+      type: newForm.type,
+      amount: parseFloat(newForm.amount),
+      counterparty: newForm.counterparty,
+      category: newForm.category,
+      description: newForm.description,
+    })
+    rows.value.push(tx)
+    editingNewRow.value = false
+  } finally {
+    saving.value = false
+  }
+  // Auto-advance: open a fresh row, keeping the date/account context of the one just saved
+  if (advance) startNew(undefined, carry)
 }
 
 function duplicateTx(tx: Transaction) {
@@ -375,12 +461,6 @@ async function executeDelete() {
   deleteTargetId.value = null
 }
 
-function dayBefore(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
-}
-
 async function refreshEditAmount() {
   if (!editForm.counterparty) return
   const asOf = dayBefore(editForm.date)
@@ -391,7 +471,38 @@ async function refreshEditAmount() {
   }
 }
 
-onMounted(() => loadRows())
+function onKeydown(e: KeyboardEvent) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (saveTplTx.value || deleteTargetId.value !== null) return
+
+  if (e.key === 'Escape') {
+    if (splitBtn.value?.isOpen()) {
+      splitBtn.value.closeMenu()
+    } else if (editingNewRow.value) {
+      if (isBlankNewRow()) editingNewRow.value = false // ends the auto-advance streak
+      else saveNew(false)
+    } else if (editingId.value !== null) {
+      saveEdit(editingId.value)
+    } else {
+      return
+    }
+    e.preventDefault()
+    return
+  }
+
+  // Page-level shortcuts are suppressed while typing in a field or when a modal is up
+  if (keyboardBusy.value || isTextEntry(e.target)) return
+  if (e.key.toLowerCase() === 't') {
+    e.preventDefault()
+    splitBtn.value?.openMenu()
+  }
+}
+
+onMounted(() => {
+  loadRows()
+  document.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
 // Auto-fill amount with current balance when cc_payment counterparty is selected
 watch(
@@ -515,19 +626,6 @@ tr.editing td {
   white-space: nowrap;
 }
 
-.icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-.icon-btn:hover {
-  opacity: 1;
-}
-
 .amount-cell {
   white-space: nowrap;
 }
@@ -583,5 +681,11 @@ tr.editing td {
 
 .add-btn {
   margin-top: 12px;
+}
+
+input.error,
+select.error {
+  border-color: var(--danger);
+  outline-color: var(--danger);
 }
 </style>

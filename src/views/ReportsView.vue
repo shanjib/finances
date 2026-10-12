@@ -1,5 +1,13 @@
 <template>
   <div class="reports-page">
+    <div class="view-toggle" role="tablist">
+      <button role="tab" :aria-selected="tab === 'single'" :class="{ active: tab === 'single' }" @click="tab = 'single'">Single Month</button>
+      <button role="tab" :aria-selected="tab === 'trend'" :class="{ active: tab === 'trend' }" @click="tab = 'trend'">Trend</button>
+    </div>
+
+    <TrendReport v-if="tab === 'trend'" />
+
+    <template v-else>
     <!-- Date range control -->
     <div class="report-controls">
       <div class="date-group">
@@ -91,6 +99,7 @@
         <p v-else class="empty-state">No transactions in the selected date range.</p>
       </section>
     </div>
+    </template>
   </div>
 </template>
 
@@ -102,8 +111,12 @@ import {
   Title, Tooltip, Legend,
   BarElement, CategoryScale, LinearScale,
 } from 'chart.js'
+import TrendReport from '../components/TrendReport.vue'
+import { todayLocal, firstOfMonthLocal } from '../utils/date'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
+
+const tab = ref<'single' | 'trend'>('single')
 
 interface ReportData {
   range: { from: string; to: string }
@@ -112,11 +125,9 @@ interface ReportData {
   byType: { type: string; total: number; count: number }[]
 }
 
-const today = new Date().toISOString().slice(0, 10)
-const firstOfMonth = today.slice(0, 7) + '-01'
-
-const rangeFrom = ref(firstOfMonth)
-const rangeTo = ref(today)
+// Computed at mount from the local calendar (toISOString() is UTC and drifts a day in the evening)
+const rangeFrom = ref(firstOfMonthLocal())
+const rangeTo = ref(todayLocal())
 const loading = ref(false)
 const reportData = ref<ReportData | null>(null)
 
@@ -247,6 +258,26 @@ onMounted(() => runReport())
 .reports-page {
   padding: 16px;
   max-width: 900px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  padding: 5px 18px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.view-toggle button.active {
+  background: var(--accent);
+  color: var(--btn-text);
 }
 
 .report-controls {

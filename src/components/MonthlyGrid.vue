@@ -32,19 +32,20 @@
         </thead>
         <tbody>
           <tr
-            v-for="row in snapshot.rows"
+            v-for="(row, rowIdx) in snapshot.rows"
             :key="row.date"
             :class="{ today: row.isToday }"
           >
             <td class="date-cell">{{ formatDateLabel(row.date) }}</td>
-            <template v-for="acct in snapshot.accounts" :key="acct">
+            <template v-for="(acct, acctIdx) in snapshot.accounts" :key="acct">
               <td class="amount-td start-of-day acct-start" :class="valueClass(row.cells[acct]?.startOfDay)">
                 <span class="dollar">$</span>
                 <span class="value">{{ formatNumber(row.cells[acct]?.startOfDay ?? 0) }}</span>
               </td>
               <td
                 class="amount-td delta-cell"
-                :class="deltaClass(row.cells[acct]?.delta)"
+                :class="[deltaClass(row.cells[acct]?.delta), { 'grid-focused': isFocused(rowIdx, acctIdx) }]"
+                :data-cell="`${rowIdx}:${acctIdx}`"
                 @click="openPopup(acct, row.date, $event)"
               >
                 <template v-if="row.cells[acct]?.delta !== null && row.cells[acct]?.delta !== undefined">
@@ -71,11 +72,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import TransactionPopup from './TransactionPopup.vue'
 import { useTransactions } from '../composables/useTransactions'
+import { useUI, isTextEntry } from '../composables/useUI'
 
 const { monthlySnapshot, loadingSnapshot, fetchMonthly } = useTransactions()
+const { keyboardBusy } = useUI()
 
 const now = new Date()
 const currentYear = ref(now.getFullYear())
@@ -154,29 +157,124 @@ async function onTransactionUpdated() {
   await fetchMonthly(currentYear.value, currentMonth.value)
 }
 
-watch([currentYear, currentMonth], () => {
-  fetchMonthly(currentYear.value, currentMonth.value)
+// ---- Keyboard navigation -------------------------------------------------
+// Only delta cells are reachable. `focusedCell` is a row/account index pair;
+// null means the grid doesn't hold focus (so ← → navigate months).
+const focusedCell = ref<{ row: number; acct: number } | null>(null)
+let pendingFocusToday = false
+
+function isFocused(row: number, acct: number) {
+  return focusedCell.value?.row === row && focusedCell.value?.acct === acct
+}
+
+function todayRowIndex(): number {
+  const rows = snapshot.value?.rows ?? []
+  const idx = rows.findIndex(r => r.isToday)
+  return idx === -1 ? 0 : idx
+}
+
+function setFocus(row: number, acct: number) {
+  const rows = snapshot.value?.rows ?? []
+  const accts = snapshot.value?.accounts ?? []
+  if (!rows.length || !accts.length) {
+    focusedCell.value = null
+    return
+  }
+  focusedCell.value = {
+    row: Math.max(0, Math.min(row, rows.length - 1)),
+    acct: Math.max(0, Math.min(acct, accts.length - 1)),
+  }
+  nextTick(() => {
+    document.querySelector('.delta-cell.grid-focused')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  })
+}
+
+function focusTodayFirstCell() {
+  setFocus(todayRowIndex(), 0)
+}
+
+function openFocusedCell() {
+  const cell = focusedCell.value
+  const snap = snapshot.value
+  if (!cell || !snap) return
+  const el = document.querySelector<HTMLElement>(`[data-cell="${cell.row}:${cell.acct}"]`)
+  if (!el) return
+  popup.value = {
+    account: snap.accounts[cell.acct],
+    date: snap.rows[cell.row].date,
+    rect: el.getBoundingClientRect(),
+  }
+}
+
+function goToToday() {
+  const t = new Date()
+  const changed = currentYear.value !== t.getFullYear() || currentMonth.value !== t.getMonth() + 1
+  if (changed) {
+    pendingFocusToday = focusedCell.value !== null
+    currentYear.value = t.getFullYear()
+    currentMonth.value = t.getMonth() + 1
+  } else if (focusedCell.value) {
+    focusTodayFirstCell()
+  }
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (isTextEntry(e.target) || keyboardBusy.value) return
+
+  const key = e.key.toLowerCase()
+  const cell = focusedCell.value
+
+  if (key === 'f') {
+    e.preventDefault()
+    focusTodayFirstCell()
+  } else if (key === 't') {
+    e.preventDefault()
+    goToToday()
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    if (cell) setFocus(cell.row, cell.acct - 1)
+    else prevMonth()
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    if (cell) setFocus(cell.row, cell.acct + 1)
+    else nextMonth()
+  } else if (cell && e.key === 'ArrowUp') {
+    e.preventDefault()
+    setFocus(cell.row - 1, cell.acct)
+  } else if (cell && e.key === 'ArrowDown') {
+    e.preventDefault()
+    setFocus(cell.row + 1, cell.acct)
+  } else if (cell && e.key === 'Enter') {
+    e.preventDefault()
+    openFocusedCell()
+  } else if (cell && e.key === 'Escape') {
+    focusedCell.value = null
+  }
+}
+
+watch([currentYear, currentMonth], async () => {
+  const keepFocus = pendingFocusToday
+  pendingFocusToday = false
+  if (!keepFocus) focusedCell.value = null
+  await fetchMonthly(currentYear.value, currentMonth.value)
+  if (keepFocus) focusTodayFirstCell()
 })
 
-function onHomeNav(e: Event) {
-  const dir = (e as CustomEvent).detail
-  if (dir === 'prev') prevMonth()
-  else if (dir === 'next') nextMonth()
-}
-
-function onPopupEscape() {
-  popup.value = null
-}
+// A reload (e.g. after editing a transaction) can change the account columns
+watch(snapshot, () => {
+  const cell = focusedCell.value
+  if (cell) setFocus(cell.row, cell.acct)
+})
 
 onMounted(() => {
   fetchMonthly(currentYear.value, currentMonth.value)
-  document.addEventListener('home-nav', onHomeNav)
-  document.addEventListener('popup-escape', onPopupEscape)
+  document.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('home-nav', onHomeNav)
-  document.removeEventListener('popup-escape', onPopupEscape)
+  document.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -348,6 +446,13 @@ tr.today .date-cell {
 
 .delta-cell {
   cursor: pointer;
+  scroll-margin: 60px 20px 20px 20px;
+}
+
+/* Keyboard focus indicator: inset ring so it survives the collapsed borders and any row highlight */
+.delta-cell.grid-focused {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  background: var(--surface);
 }
 
 .delta-cell:hover {

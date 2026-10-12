@@ -45,8 +45,8 @@
               ref="renameInputRef"
             />
             <span v-if="renameError" class="inline-error">{{ renameError }}</span>
-            <button class="icon-btn" @click="confirmRename(acct)" title="Save">✓</button>
-            <button class="icon-btn" @click="renamingAccount = null" title="Cancel">✕</button>
+            <button class="icon-btn confirm" @click="confirmRename(acct)" title="Save" aria-label="Save">✓</button>
+            <button class="icon-btn cancel" @click="renamingAccount = null" title="Cancel" aria-label="Cancel">✕</button>
           </template>
           <template v-else>
             <span class="acct-name">{{ acct }}</span>
@@ -76,8 +76,8 @@
               @keydown.escape="renamingAccount = null"
             />
             <span v-if="renameError" class="inline-error">{{ renameError }}</span>
-            <button class="icon-btn" @click="confirmRename(acct)" title="Save">✓</button>
-            <button class="icon-btn" @click="renamingAccount = null" title="Cancel">✕</button>
+            <button class="icon-btn confirm" @click="confirmRename(acct)" title="Save" aria-label="Save">✓</button>
+            <button class="icon-btn cancel" @click="renamingAccount = null" title="Cancel" aria-label="Cancel">✕</button>
           </template>
           <template v-else>
             <span class="acct-name muted">{{ acct }}</span>
@@ -152,6 +152,69 @@
       </div>
     </section>
 
+    <!-- Templates -->
+    <section class="settings-section">
+      <h2>Templates</h2>
+      <p class="hint">
+        Presets that pre-fill a new transaction row. Save one with the 🔖 icon on any transaction.
+        Account and date are never stored; they come from where you add the transaction.
+      </p>
+      <ul class="drag-list" v-if="templates.length">
+        <li v-for="t in templates" :key="t.id" class="template-item" :class="{ editing: editingTplId === t.id }">
+          <template v-if="editingTplId === t.id">
+            <div class="tpl-form">
+              <div class="form-row">
+                <label>Name</label>
+                <input v-model="tplForm.name" @keydown.enter="saveTemplate(t.id)" @keydown.escape="editingTplId = null" />
+              </div>
+              <div class="form-row">
+                <label>Type</label>
+                <select v-model="tplForm.type">
+                  <option v-for="ty in meta.types" :key="ty" :value="ty">{{ ty }}</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Amount</label>
+                <input type="number" step="0.01" v-model="tplForm.amount" @keydown.enter="saveTemplate(t.id)" />
+              </div>
+              <div v-if="tplNeedsCounterparty" class="form-row">
+                <label>Counterparty</label>
+                <select v-model="tplForm.counterparty">
+                  <option value="">— select account —</option>
+                  <option v-for="a in allAccounts" :key="a" :value="a">{{ a }}</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Category</label>
+                <select v-model="tplForm.category">
+                  <option value="">—</option>
+                  <option v-for="c in meta.categories" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Description</label>
+                <input v-model="tplForm.description" @keydown.enter="saveTemplate(t.id)" />
+              </div>
+              <span v-if="tplError" class="inline-error">{{ tplError }}</span>
+              <div class="form-actions">
+                <button class="icon-btn confirm" @click="saveTemplate(t.id)" title="Save" aria-label="Save">✓</button>
+                <button class="icon-btn cancel" @click="editingTplId = null" title="Cancel" aria-label="Cancel">✕</button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="tpl-text">
+              <span class="acct-name">{{ t.name }}</span>
+              <span class="tpl-summary">{{ summarizeTemplate(t) }}</span>
+            </div>
+            <button class="icon-btn" @click="startEditTemplate(t)" title="Edit">✏️</button>
+            <button class="icon-btn" @click="removeTemplate(t.id)" title="Delete">🗑️</button>
+          </template>
+        </li>
+      </ul>
+      <p v-else class="hint">No templates saved yet.</p>
+    </section>
+
     <!-- Rollover -->
     <section class="settings-section">
       <h2>Archive &amp; Rollover</h2>
@@ -183,14 +246,66 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { useMeta } from '../composables/useMeta'
+import { useTemplates, summarizeTemplate, type Template } from '../composables/useTemplates'
+import { todayLocal } from '../utils/date'
 
 const {
   meta, setTheme, setAccountOrder, addCategory, deleteCategory, addType, deleteType,
   renameAccount, setAccountVisibility, createAccount,
 } = useMeta()
+
+const { templates, updateTemplate, deleteTemplate } = useTemplates()
+
+const allAccounts = computed(() => [
+  ...meta.value.account_order,
+  ...(meta.value.hidden_accounts || []).filter(a => !meta.value.account_order.includes(a)),
+])
+
+// Templates
+const editingTplId = ref<number | null>(null)
+const tplError = ref('')
+const tplForm = reactive({ name: '', type: '', amount: '', counterparty: '', category: '', description: '' })
+const tplNeedsCounterparty = computed(() => tplForm.type === 'transfer' || tplForm.type === 'cc_payment')
+
+function startEditTemplate(t: Template) {
+  editingTplId.value = t.id
+  tplError.value = ''
+  Object.assign(tplForm, {
+    name: t.name,
+    type: t.type,
+    amount: String(t.amount),
+    counterparty: t.counterparty,
+    category: t.category,
+    description: t.description,
+  })
+}
+
+async function saveTemplate(id: number) {
+  tplError.value = ''
+  if (!tplForm.name.trim()) { tplError.value = 'Name is required'; return }
+  if (tplForm.amount === '' || isNaN(parseFloat(tplForm.amount))) { tplError.value = 'Amount is required'; return }
+  try {
+    await updateTemplate(id, {
+      name: tplForm.name.trim(),
+      type: tplForm.type,
+      amount: parseFloat(tplForm.amount),
+      counterparty: tplNeedsCounterparty.value ? tplForm.counterparty : '',
+      category: tplForm.category,
+      description: tplForm.description,
+    })
+    editingTplId.value = null
+  } catch (e: any) {
+    tplError.value = e.message
+  }
+}
+
+async function removeTemplate(id: number) {
+  await deleteTemplate(id)
+  if (editingTplId.value === id) editingTplId.value = null
+}
 
 async function handleTheme(t: 'light' | 'dark' | 'warm') {
   await setTheme(t)
@@ -265,7 +380,7 @@ async function showAccount(name: string) {
 const showAddAccount = ref(false)
 const newAcctName = ref('')
 const newAcctBalance = ref('')
-const newAcctDate = ref(new Date().toISOString().slice(0, 10))
+const newAcctDate = ref(todayLocal())
 const newAcctErrors = ref({ name: '', balance: '', date: '' })
 const savingAccount = ref(false)
 
@@ -273,7 +388,7 @@ function cancelAddAccount() {
   showAddAccount.value = false
   newAcctName.value = ''
   newAcctBalance.value = ''
-  newAcctDate.value = new Date().toISOString().slice(0, 10)
+  newAcctDate.value = todayLocal()
   newAcctErrors.value = { name: '', balance: '', date: '' }
 }
 
@@ -512,17 +627,50 @@ h2 {
   font-size: 12px;
 }
 
-.icon-btn {
+.tag-item .icon-btn {
   font-size: 14px;
   color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
   padding: 0 2px;
 }
 
-.icon-btn:hover {
+.tag-item .icon-btn:hover {
   color: var(--danger);
+}
+
+.template-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.template-item.editing {
+  display: block;
+}
+
+.tpl-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tpl-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tpl-form .form-row select {
+  flex: 1;
+  min-width: 0;
 }
 
 .inline-add {

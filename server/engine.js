@@ -1,3 +1,5 @@
+import { toLocalISODate } from './dates.js'
+
 /**
  * Pure balance computation functions. No I/O, no side effects.
  */
@@ -82,18 +84,21 @@ export function computeDayDelta(transactions, account, date) {
   return delta
 }
 
-export function computeMonthlySnapshot(transactions, year, month, accountOrder) {
+export function computeMonthlySnapshot(transactions, year, month, accountOrder, hiddenAccounts = []) {
   const y = parseInt(year)
   const m = parseInt(month)
 
   const daysInMonth = new Date(y, m, 0).getDate()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalISODate()
+  const hidden = new Set(hiddenAccounts)
 
   const accounts = accountOrder.filter(acct =>
+    !hidden.has(acct) &&
     transactions.some(tx => tx.account === acct || tx.counterparty === acct)
   )
 
-  // Also include accounts from transactions that aren't in accountOrder
+  // Also include accounts from transactions that aren't in accountOrder.
+  // Hidden accounts are deliberately excluded: they keep their data but have no columns.
   const allAccounts = new Set(accounts)
   for (const tx of transactions) {
     allAccounts.add(tx.account)
@@ -101,7 +106,7 @@ export function computeMonthlySnapshot(transactions, year, month, accountOrder) 
   }
   const finalAccounts = [
     ...accounts,
-    ...[...allAccounts].filter(a => !accounts.includes(a)),
+    ...[...allAccounts].filter(a => !accounts.includes(a) && !hidden.has(a)),
   ]
 
   const rows = []

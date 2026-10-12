@@ -7,6 +7,7 @@ interface Meta {
   categories: string[]
   types: string[]
   theme: 'light' | 'dark' | 'warm' | null
+  templates?: unknown[]
 }
 
 const meta = ref<Meta>({
@@ -15,7 +16,7 @@ const meta = ref<Meta>({
   hidden_accounts: [],
   categories: [],
   types: [],
-  theme: 'light',
+  theme: null,
 })
 const loading = ref(false)
 
@@ -124,11 +125,11 @@ async function createAccount(name: string, openingBalance: number, date: string)
   return data
 }
 
-// Auto-fetch on first use; apply theme to root element
+// Auto-fetch on first use; apply theme to root element.
+// A missing/null theme means it was never chosen: follow the OS preference and persist it.
 fetchMeta().then(() => {
   if (!meta.value.theme) {
-    const detected = detectSystemTheme()
-    setTheme(detected)
+    setTheme(detectSystemTheme())
   } else {
     applyTheme(meta.value.theme)
   }

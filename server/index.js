@@ -7,9 +7,13 @@ import { computeMonthlySnapshot, computeRunningBalances } from './engine.js'
 import { createTransactionsRouter } from './routes/transactions.js'
 import { createMetaRouter } from './routes/meta.js'
 import { createRolloverRouter } from './routes/rollover.js'
+import { createTemplatesRouter } from './routes/templates.js'
+import { gatherTransactions, summarize, buildTrend } from './reports.js'
+import { todayLocal } from './dates.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dataDir = path.join(__dirname, '../data')
+// DATA_DIR lets you point the server at a copy of the data (e.g. for testing)
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '../data')
 const activeCSVPath = path.join(dataDir, 'active.csv')
 const metaPath = path.join(dataDir, 'meta.json')
 
@@ -23,11 +27,15 @@ const state = {
     categories: [],
     types: ['expense', 'income', 'transfer', 'cc_payment', 'opening_balance'],
     theme: null,
+    templates: [],
   },
   activeCSVPath,
   dataDir,
   saveMeta: async () => {
-    fs.writeFileSync(metaPath, JSON.stringify(state.meta, null, 2), 'utf-8')
+    // Write-then-rename so a crash mid-write can't corrupt meta.json
+    const tmpPath = `${metaPath}.tmp`
+    fs.writeFileSync(tmpPath, JSON.stringify(state.meta, null, 2), 'utf-8')
+    fs.renameSync(tmpPath, metaPath)
   },
 }
 
@@ -36,6 +44,9 @@ async function init() {
   if (fs.existsSync(metaPath)) {
     const loaded = JSON.parse(fs.readFileSync(metaPath, 'utf-8'))
     if (!loaded.hidden_accounts) loaded.hidden_accounts = []
+    if (!Array.isArray(loaded.templates)) loaded.templates = []
+    // A missing theme means "not chosen yet": the frontend detects the OS preference
+    if (!loaded.theme) loaded.theme = null
     state.meta = loaded
   } else {
     console.error(
@@ -83,6 +94,7 @@ app.use(express.json())
 app.use('/api/transactions', createTransactionsRouter(state))
 app.use('/api/meta', createMetaRouter(state))
 app.use('/api/rollover', createRolloverRouter(state))
+app.use('/api/templates', createTemplatesRouter(state))
 
 // Create account
 app.post('/api/accounts', async (req, res) => {
@@ -131,7 +143,7 @@ app.post('/api/accounts', async (req, res) => {
 // Current balance for a single account, optionally as-of a given date
 app.get('/api/balance/:account', (req, res) => {
   const account = decodeURIComponent(req.params.account)
-  const asOf = req.query.asOf || new Date().toISOString().slice(0, 10)
+  const asOf = req.query.asOf || todayLocal()
   const balances = computeRunningBalances(state.activeTransactions, asOf)
   res.json({ account, balance: balances[account] ?? 0 })
 })
@@ -142,71 +154,20 @@ app.get('/api/reports', async (req, res) => {
     const { from, to } = req.query
     if (!from || !to) return res.status(400).json({ error: 'from and to are required' })
 
-    // Gather all transactions in range
-    let txs = [...state.activeTransactions]
+    const txs = await gatherTransactions(state, from, to)
+    res.json({ range: { from, to }, ...summarize(txs, state.meta) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
-    const archiveDir = path.join(dataDir, 'archive')
-    if (fs.existsSync(archiveDir)) {
-      const files = fs.readdirSync(archiveDir).filter(f => f.endsWith('.csv'))
-      for (const file of files) {
-        const match = file.match(/^(\d{4}-\d{2}-\d{2})_to_(\d{4}-\d{2}-\d{2})\.csv$/)
-        if (match && match[1] <= to && match[2] >= from) {
-          const archiveTxs = await readCSV(path.join(archiveDir, file))
-          txs = txs.concat(archiveTxs)
-        }
-      }
-    }
+// Multi-month trend: one summary per calendar month across [from, to]
+app.get('/api/reports/trend', async (req, res) => {
+  try {
+    const { from, to } = req.query
+    if (!from || !to) return res.status(400).json({ error: 'from and to are required' })
 
-    txs = txs.filter(tx => tx.date >= from && tx.date <= to)
-
-    const hiddenAccounts = new Set(state.meta.hidden_accounts || [])
-
-    // By category
-    const catMap = {}
-    for (const tx of txs) {
-      const key = tx.category || '(uncategorized)'
-      if (!catMap[key]) catMap[key] = { total: 0, count: 0 }
-      catMap[key].total += tx.amount
-      catMap[key].count++
-    }
-    const byCategory = Object.entries(catMap)
-      .map(([category, v]) => ({ category, total: v.total, count: v.count }))
-      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
-
-    // By account (visible only)
-    const acctMap = {}
-    for (const tx of txs) {
-      if (!hiddenAccounts.has(tx.account)) {
-        if (!acctMap[tx.account]) acctMap[tx.account] = { netFlow: 0, count: 0 }
-        acctMap[tx.account].netFlow += tx.amount
-        acctMap[tx.account].count++
-      }
-      if (tx.counterparty && !hiddenAccounts.has(tx.counterparty)) {
-        // counterparty receives the opposite flow for transfers
-        if (tx.type === 'transfer' || tx.type === 'cc_payment') {
-          if (!acctMap[tx.counterparty]) acctMap[tx.counterparty] = { netFlow: 0, count: 0 }
-          acctMap[tx.counterparty].netFlow -= tx.amount
-          acctMap[tx.counterparty].count++
-        }
-      }
-    }
-    const accountOrder = state.meta.account_order || []
-    const byAccount = accountOrder
-      .filter(a => acctMap[a])
-      .map(account => ({ account, netFlow: acctMap[account].netFlow, count: acctMap[account].count }))
-
-    // By type
-    const typeMap = {}
-    for (const tx of txs) {
-      if (!typeMap[tx.type]) typeMap[tx.type] = { total: 0, count: 0 }
-      typeMap[tx.type].total += tx.amount
-      typeMap[tx.type].count++
-    }
-    const byType = Object.entries(typeMap)
-      .map(([type, v]) => ({ type, total: v.total, count: v.count }))
-      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
-
-    res.json({ range: { from, to }, byCategory, byAccount, byType })
+    res.json({ range: { from, to }, ...(await buildTrend(state, from, to)) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -243,7 +204,9 @@ app.get('/api/monthly/:year/:month', async (req, res) => {
       }
     }
 
-    const snapshot = computeMonthlySnapshot(transactions, year, month, state.meta.account_order)
+    const snapshot = computeMonthlySnapshot(
+      transactions, year, month, state.meta.account_order, state.meta.hidden_accounts
+    )
     res.json(snapshot)
   } catch (err) {
     res.status(500).json({ error: err.message })

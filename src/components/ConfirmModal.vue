@@ -13,6 +13,10 @@
 </template>
 
 <script setup lang="ts">
+import { useOverlay } from '../composables/useUI'
+
+useOverlay()
+
 defineProps<{
   message: string
   confirmLabel?: string

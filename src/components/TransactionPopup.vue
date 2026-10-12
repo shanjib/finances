@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div class="popup-backdrop" @mousedown.self="handleBackdropClick" />
-    <div class="popup" :style="popupStyle" ref="popupEl">
+    <div class="popup" :style="popupStyle" ref="popupEl" tabindex="-1">
       <div class="popup-header">
         <span class="popup-title">{{ account }} · {{ formatDate(date) }}</span>
         <button class="popup-close" @click="$emit('close')">×</button>
@@ -23,6 +23,7 @@
             v-for="tx in transactions"
             :key="tx.id"
             :class="{ 'editing': editingId === tx.id }"
+            @keydown.enter="onRowEnter($event, () => saveEdit(tx.id))"
           >
             <template v-if="editingId === tx.id">
               <td>
@@ -64,11 +65,11 @@
                 </select>
               </td>
               <td>
-                <input v-model="editForm.description" @keydown.enter="saveEdit(tx.id)" />
+                <input v-model="editForm.description" />
               </td>
               <td class="tx-actions">
-                <button class="icon-btn" @click="saveEdit(tx.id)" title="Save">✓</button>
-                <button class="icon-btn" @click="cancelEdit" title="Cancel">✕</button>
+                <button class="icon-btn confirm" @click="saveEdit(tx.id)" title="Save" aria-label="Save">✓</button>
+                <button class="icon-btn cancel" @click="cancelEdit" title="Cancel" aria-label="Cancel">✕</button>
               </td>
             </template>
             <template v-else>
@@ -79,6 +80,7 @@
               <td>{{ tx.description || '—' }}</td>
               <td class="tx-actions">
                 <button class="icon-btn" @click="duplicateTx(tx)" title="Duplicate">📋</button>
+                <button class="icon-btn" @click="saveTplTx = tx" title="Save as template">🔖</button>
                 <button class="icon-btn" @click="startEdit(tx)" title="Edit">✏️</button>
                 <button class="icon-btn" @click="confirmDelete(tx.id)" title="Delete">🗑️</button>
               </td>
@@ -86,9 +88,9 @@
           </tr>
 
           <!-- New row -->
-          <tr v-if="editingNew" class="editing">
+          <tr v-if="editingNew" class="editing" @keydown.enter="onRowEnter($event, () => saveNew(true))">
             <td>
-              <select v-model="newForm.type" :class="{ error: newErrors.type }">
+              <select v-model="newForm.type" :class="{ error: newErrors.type }" ref="typeSelect">
                 <option v-for="t in meta.types" :key="t" :value="t">{{ t }}</option>
                 <option value="__add__">+ Add new</option>
               </select>
@@ -121,11 +123,11 @@
               </select>
             </td>
             <td>
-              <input v-model="newForm.description" @keydown.enter="saveNew" />
+              <input v-model="newForm.description" />
             </td>
             <td class="tx-actions">
-              <button class="icon-btn" @click="saveNew" title="Save">✓</button>
-              <button class="icon-btn" @click="cancelNew" title="Cancel">✕</button>
+              <button class="icon-btn confirm" @click="saveNew(false)" title="Save" aria-label="Save">✓</button>
+              <button class="icon-btn cancel" @click="cancelNew" title="Cancel" aria-label="Cancel">✕</button>
             </td>
           </tr>
         </tbody>
@@ -134,7 +136,13 @@
       <p v-if="!transactions.length && !editingNew" class="empty-msg">No transactions for this day.</p>
 
       <div class="popup-footer">
-        <button class="btn" @click="startNew" :disabled="editingNew || editingId !== null">+ Add</button>
+        <TemplateSplitButton
+          ref="splitBtn"
+          label="+ Add"
+          :disabled="editingNew || editingId !== null"
+          @add="startNew()"
+          @pick="onPickTemplate"
+        />
       </div>
     </div>
 
@@ -145,6 +153,8 @@
       @confirm="executeDelete"
       @cancel="deleteTargetId = null"
     />
+
+    <SaveTemplateDialog v-if="saveTplTx" :tx="saveTplTx" @close="saveTplTx = null" />
 
     <!-- Add new type/category inline prompt -->
     <div v-if="addingNewMeta" class="add-meta-prompt" @click.self="addingNewMeta = null">
@@ -161,9 +171,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, watch } from 'vue'
+import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import ConfirmModal from './ConfirmModal.vue'
+import TemplateSplitButton from './TemplateSplitButton.vue'
+import SaveTemplateDialog from './SaveTemplateDialog.vue'
 import { useMeta } from '../composables/useMeta'
+import { usePopupFlag, isTextEntry } from '../composables/useUI'
+import type { Template } from '../composables/useTemplates'
+import { dayBefore } from '../utils/date'
 import { useTransactions, type Transaction } from '../composables/useTransactions'
 
 const props = defineProps<{
@@ -177,6 +192,8 @@ const emit = defineEmits<{
   updated: []
 }>()
 
+usePopupFlag()
+
 const { meta, addCategory, addType } = useMeta()
 
 const allAccounts = computed(() => [
@@ -188,6 +205,10 @@ const { fetchTransactionsForDay, createTransaction, updateTransaction, deleteTra
 const transactions = ref<Transaction[]>([])
 const popupEl = ref<HTMLElement | null>(null)
 const amountInput = ref<HTMLInputElement | null>(null)
+const typeSelect = ref<HTMLSelectElement | null>(null)
+const splitBtn = ref<InstanceType<typeof TemplateSplitButton> | null>(null)
+const saveTplTx = ref<Transaction | null>(null)
+const busy = ref(false)
 
 const editingId = ref<number | null>(null)
 const editForm = reactive({ type: '', amount: '', counterparty: '', category: '', description: '' })
@@ -242,12 +263,6 @@ function needsCounterparty(type: string) {
   return type === 'transfer' || type === 'cc_payment'
 }
 
-function dayBefore(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
-}
-
 function formatDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -297,32 +312,81 @@ async function saveEdit(id: number) {
   }
   if (!validateForm(editForm, errors)) return
 
-  await updateTransaction(id, {
+  const next = {
     type: editForm.type,
     amount: parseFloat(editForm.amount as string),
     counterparty: editForm.counterparty,
     category: editForm.category,
     description: editForm.description,
-  })
-  editingId.value = null
-  await load()
-  emit('updated')
+  }
+  const original = transactions.value.find(tx => tx.id === id)
+  const unchanged = original && (Object.keys(next) as (keyof typeof next)[]).every(k => original[k] === next[k])
+  if (unchanged) {
+    editingId.value = null
+    return
+  }
+
+  if (busy.value) return
+  busy.value = true
+  try {
+    await updateTransaction(id, next)
+    editingId.value = null
+    await load()
+    emit('updated')
+  } finally {
+    busy.value = false
+  }
 }
 
-function startNew() {
+function startNew(template?: Template) {
   editingNew.value = true
   Object.assign(newForm, { type: 'expense', amount: '', counterparty: '', category: '', description: '' })
   newErrors.type = false
   newErrors.amount = false
   newErrors.counterparty = false
-  nextTick(() => amountInput.value?.focus())
+  if (template) applyTemplate(newForm, template)
+  // Blank rows start on the first field; a template-filled row starts on the amount
+  nextTick(() => (template ? amountInput.value : typeSelect.value)?.focus())
+}
+
+// Account and date are never part of a template; they come from the popup context.
+function applyTemplate(form: typeof newForm | typeof editForm, t: Template) {
+  Object.assign(form, {
+    type: t.type,
+    amount: String(t.amount),
+    counterparty: t.counterparty,
+    category: t.category,
+    description: t.description,
+  })
+}
+
+function onPickTemplate(t: Template) {
+  if (editingNew.value) {
+    applyTemplate(newForm, t)
+    nextTick(() => amountInput.value?.focus())
+  } else if (editingId.value !== null) {
+    applyTemplate(editForm, t)
+  } else {
+    startNew(t)
+  }
+}
+
+/** Enter in a row's field saves it (buttons keep their own Enter/click behaviour). */
+function onRowEnter(e: KeyboardEvent, save: () => void) {
+  if ((e.target as HTMLElement).tagName === 'BUTTON') return
+  e.preventDefault()
+  save()
+}
+
+function isBlankNewRow() {
+  return !newForm.amount && !newForm.description && !newForm.counterparty && !newForm.category
 }
 
 function cancelNew() {
   editingNew.value = false
 }
 
-async function saveNew() {
+async function saveNew(advance = false) {
   if (newForm.type === '__add__') {
     addingNewMeta.value = { field: 'type', value: '', target: 'new' }
     return
@@ -340,18 +404,26 @@ async function saveNew() {
 
   if (!validateForm(newForm, newErrors)) return
 
-  await createTransaction({
-    date: props.date,
-    account: props.account,
-    type: newForm.type,
-    amount: parseFloat(newForm.amount as string),
-    counterparty: newForm.counterparty,
-    category: newForm.category,
-    description: newForm.description,
-  })
-  editingNew.value = false
-  await load()
-  emit('updated')
+  if (busy.value) return
+  busy.value = true
+  try {
+    await createTransaction({
+      date: props.date,
+      account: props.account,
+      type: newForm.type,
+      amount: parseFloat(newForm.amount as string),
+      counterparty: newForm.counterparty,
+      category: newForm.category,
+      description: newForm.description,
+    })
+    editingNew.value = false
+    await load()
+    emit('updated')
+  } finally {
+    busy.value = false
+  }
+  // Auto-advance: keep entering without reaching for the + button
+  if (advance) startNew()
 }
 
 function confirmDelete(id: number) {
@@ -382,8 +454,9 @@ async function saveNewMeta() {
 }
 
 function handleBackdropClick() {
+  if (saveTplTx.value) return
   if (editingNew.value) {
-    saveNew()
+    saveNew(false)
   } else if (editingId.value !== null) {
     saveEdit(editingId.value)
   } else {
@@ -415,6 +488,49 @@ async function refreshEditAmount() {
   }
 }
 
+/**
+ * Popup keyboard handling. Runs in the capture phase so it wins over the
+ * page-level shortcuts, and only consumes the keys it actually handles.
+ */
+function onDocKeydown(e: KeyboardEvent) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  // The save-template dialog manages its own keys
+  if (saveTplTx.value) return
+
+  const consume = () => { e.preventDefault(); e.stopPropagation() }
+
+  if (e.key === 'Escape') {
+    consume()
+    if (deleteTargetId.value !== null) deleteTargetId.value = null
+    else if (addingNewMeta.value) addingNewMeta.value = null
+    else if (splitBtn.value?.isOpen()) splitBtn.value.closeMenu()
+    else if (editingNew.value) {
+      if (isBlankNewRow()) cancelNew() // ends the auto-advance streak
+      else saveNew(false)
+    } else if (editingId.value !== null) saveEdit(editingId.value)
+    else emit('close')
+    return
+  }
+
+  if (deleteTargetId.value !== null || addingNewMeta.value) return
+  if (isTextEntry(e.target)) return
+
+  const key = e.key.toLowerCase()
+  if (key === 'n' && !editingNew.value && editingId.value === null) {
+    consume()
+    startNew()
+  } else if (key === 't') {
+    consume()
+    splitBtn.value?.openMenu()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onDocKeydown, true)
+  popupEl.value?.focus()
+})
+onUnmounted(() => document.removeEventListener('keydown', onDocKeydown, true))
+
 // Auto-fill amount with current balance when cc_payment counterparty is selected
 watch(
   () => [newForm.type, newForm.counterparty] as const,
@@ -439,6 +555,7 @@ watch(
 }
 
 .popup {
+  outline: none;
   background: var(--popup-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -513,19 +630,6 @@ tr.editing td {
 
 .tx-actions {
   white-space: nowrap;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-.icon-btn:hover {
-  opacity: 1;
 }
 
 .amount-cell.pos {
