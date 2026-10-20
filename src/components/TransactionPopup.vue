@@ -22,7 +22,8 @@
           <tr
             v-for="tx in transactions"
             :key="tx.id"
-            :class="{ 'editing': editingId === tx.id }"
+            :class="{ 'editing': editingId === tx.id, 'row-focused': focusedId === tx.id && editingId !== tx.id }"
+            @click="focusedId = tx.id"
             @keydown.enter="onRowEnter($event, () => saveEdit(tx.id))"
           >
             <template v-if="editingId === tx.id">
@@ -150,8 +151,9 @@
       v-if="deleteTargetId !== null"
       message="Delete this transaction?"
       confirm-label="Delete"
+      focus-confirm
       @confirm="executeDelete"
-      @cancel="deleteTargetId = null"
+      @cancel="cancelDelete"
     />
 
     <SaveTemplateDialog v-if="saveTplTx" :tx="saveTplTx" @close="saveTplTx = null" />
@@ -220,6 +222,9 @@ const newErrors = reactive({ type: false, amount: false, counterparty: false })
 
 const deleteTargetId = ref<number | null>(null)
 
+// Keyboard-focused transaction row (by id, so it survives reloads); null = none
+const focusedId = ref<number | null>(null)
+
 const addingNewMeta = ref<{ field: 'category' | 'type', value: string, target: 'edit' | 'new' } | null>(null)
 
 // Popup positioning
@@ -257,7 +262,28 @@ async function load() {
   transactions.value = await fetchTransactionsForDay(props.account, props.date)
 }
 
-load()
+// On open: focus the first row, or the + button when the day is empty
+load().then(() => {
+  if (transactions.value.length) focusedId.value = transactions.value[0].id
+  else nextTick(() => splitBtn.value?.focus())
+})
+
+/** Hand keyboard focus back to the popup itself once a row's fields go away. */
+function refocusPopup() {
+  nextTick(() => popupEl.value?.focus())
+}
+
+function moveRowFocus(dir: 1 | -1) {
+  const list = transactions.value
+  if (!list.length) return
+  const idx = list.findIndex(tx => tx.id === focusedId.value)
+  const next = idx === -1 ? (dir > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, idx + dir))
+  focusedId.value = list[next].id
+}
+
+watch(focusedId, () => {
+  nextTick(() => popupEl.value?.querySelector('tr.row-focused')?.scrollIntoView({ block: 'nearest' }))
+})
 
 function needsCounterparty(type: string) {
   return type === 'transfer' || type === 'cc_payment'
@@ -276,8 +302,9 @@ function amountClass(tx: Transaction) {
   return isNeg ? 'neg' : 'pos'
 }
 
-function startEdit(tx: Transaction) {
+function startEdit(tx: Transaction, fromKeyboard = false) {
   editingId.value = tx.id
+  focusedId.value = tx.id
   Object.assign(editForm, {
     type: tx.type,
     amount: String(tx.amount),
@@ -288,10 +315,12 @@ function startEdit(tx: Transaction) {
   errors.type = false
   errors.amount = false
   errors.counterparty = false
+  if (fromKeyboard) nextTick(() => popupEl.value?.querySelector<HTMLElement>('tr.editing select')?.focus())
 }
 
 function cancelEdit() {
   editingId.value = null
+  refocusPopup()
 }
 
 function validateForm(form: typeof editForm | typeof newForm, errs: typeof errors | typeof newErrors) {
@@ -323,6 +352,7 @@ async function saveEdit(id: number) {
   const unchanged = original && (Object.keys(next) as (keyof typeof next)[]).every(k => original[k] === next[k])
   if (unchanged) {
     editingId.value = null
+    refocusPopup()
     return
   }
 
@@ -331,6 +361,7 @@ async function saveEdit(id: number) {
   try {
     await updateTransaction(id, next)
     editingId.value = null
+    refocusPopup()
     await load()
     emit('updated')
   } finally {
@@ -427,15 +458,31 @@ async function saveNew(advance = false) {
 }
 
 function confirmDelete(id: number) {
+  focusedId.value = id
   deleteTargetId.value = id
+}
+
+function cancelDelete() {
+  deleteTargetId.value = null
+  refocusPopup()
 }
 
 async function executeDelete() {
   if (deleteTargetId.value === null) return
+  const idx = transactions.value.findIndex(tx => tx.id === deleteTargetId.value)
   await deleteTransaction(deleteTargetId.value)
   deleteTargetId.value = null
   await load()
   emit('updated')
+  // Focus the row that took its place (or the new last row); empty day → + button
+  const list = transactions.value
+  if (list.length) {
+    focusedId.value = list[Math.min(Math.max(idx, 0), list.length - 1)].id
+    refocusPopup()
+  } else {
+    focusedId.value = null
+    nextTick(() => splitBtn.value?.focus())
+  }
 }
 
 async function saveNewMeta() {
@@ -501,7 +548,7 @@ function onDocKeydown(e: KeyboardEvent) {
 
   if (e.key === 'Escape') {
     consume()
-    if (deleteTargetId.value !== null) deleteTargetId.value = null
+    if (deleteTargetId.value !== null) cancelDelete()
     else if (addingNewMeta.value) addingNewMeta.value = null
     else if (splitBtn.value?.isOpen()) splitBtn.value.closeMenu()
     else if (editingNew.value) {
@@ -515,8 +562,22 @@ function onDocKeydown(e: KeyboardEvent) {
   if (deleteTargetId.value !== null || addingNewMeta.value) return
   if (isTextEntry(e.target)) return
 
+  // The template menu handles its own arrow keys
+  if (splitBtn.value?.isOpen()) return
+
   const key = e.key.toLowerCase()
-  if (key === 'n' && !editingNew.value && editingId.value === null) {
+  const noRowEditing = !editingNew.value && editingId.value === null
+  const focusedTx = transactions.value.find(tx => tx.id === focusedId.value)
+  if (noRowEditing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    consume()
+    moveRowFocus(e.key === 'ArrowDown' ? 1 : -1)
+  } else if (noRowEditing && key === 'e' && focusedTx) {
+    consume()
+    startEdit(focusedTx, true)
+  } else if (noRowEditing && key === 'd' && focusedTx) {
+    consume()
+    confirmDelete(focusedTx.id)
+  } else if (key === 'n' && noRowEditing) {
     consume()
     startNew()
   } else if (key === 't') {
@@ -626,6 +687,12 @@ watch(
 
 tr.editing td {
   background: var(--surface);
+}
+
+/* Keyboard row focus: same ring as the grid's focused cell */
+tr.row-focused {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .tx-actions {

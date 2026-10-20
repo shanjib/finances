@@ -60,7 +60,8 @@
           <tr
             v-for="tx in sortedRows"
             :key="tx.id"
-            :class="{ editing: editingId === tx.id }"
+            :class="{ editing: editingId === tx.id, 'row-focused': focusedId === tx.id && editingId !== tx.id }"
+            @click="focusedId = tx.id"
             @keydown.enter="onRowEnter($event, () => saveEdit(tx.id))"
           >
             <template v-if="editingId === tx.id">
@@ -180,6 +181,7 @@
       v-if="deleteTargetId !== null"
       message="Delete this transaction?"
       confirm-label="Delete"
+      focus-confirm
       @confirm="executeDelete"
       @cancel="deleteTargetId = null"
     />
@@ -231,6 +233,9 @@ const saveTplTx = ref<Transaction | null>(null)
 const saving = ref(false)
 
 const deleteTargetId = ref<number | null>(null)
+
+// Keyboard-focused table row (by id, so it survives sorting and edits); null = none
+const focusedId = ref<number | null>(null)
 
 const sortCol = ref('date')
 const sortDir = ref<'asc' | 'desc'>('desc')
@@ -292,7 +297,20 @@ async function loadRows() {
   } finally {
     loading.value = false
   }
+  focusedId.value = sortedRows.value[0]?.id ?? null
 }
+
+function moveRowFocus(dir: 1 | -1) {
+  const list = sortedRows.value
+  if (!list.length) return
+  const idx = list.findIndex(tx => tx.id === focusedId.value)
+  const next = idx === -1 ? (dir > 0 ? 0 : list.length - 1) : Math.max(0, Math.min(list.length - 1, idx + dir))
+  focusedId.value = list[next].id
+}
+
+watch(focusedId, () => {
+  nextTick(() => document.querySelector('.log-table tr.row-focused')?.scrollIntoView({ block: 'nearest' }))
+})
 
 function applyFilters() {
   loadRows()
@@ -317,8 +335,9 @@ function exportCSV() {
   window.location.href = `/api/transactions/export?${params}`
 }
 
-function startEdit(tx: Transaction) {
+function startEdit(tx: Transaction, fromKeyboard = false) {
   editingId.value = tx.id
+  focusedId.value = tx.id
   Object.assign(editForm, {
     date: tx.date,
     account: tx.account,
@@ -328,6 +347,9 @@ function startEdit(tx: Transaction) {
     category: tx.category,
     description: tx.description,
   })
+  if (fromKeyboard) {
+    nextTick(() => document.querySelector<HTMLElement>('.log-table tr.editing input, .log-table tr.editing select')?.focus())
+  }
 }
 
 function cancelEdit() {
@@ -451,14 +473,25 @@ function duplicateTx(tx: Transaction) {
 }
 
 function confirmDelete(id: number) {
+  focusedId.value = id
   deleteTargetId.value = id
 }
 
 async function executeDelete() {
   if (deleteTargetId.value === null) return
-  await deleteTransaction(deleteTargetId.value)
-  rows.value = rows.value.filter(tx => tx.id !== deleteTargetId.value)
+  const id = deleteTargetId.value
+  const idx = sortedRows.value.findIndex(tx => tx.id === id)
+  await deleteTransaction(id)
+  rows.value = rows.value.filter(tx => tx.id !== id)
   deleteTargetId.value = null
+  // Focus the row that took its place (or the new last row); no rows left → + button
+  const list = sortedRows.value
+  if (list.length) {
+    focusedId.value = list[Math.min(Math.max(idx, 0), list.length - 1)].id
+  } else {
+    focusedId.value = null
+    nextTick(() => splitBtn.value?.focus())
+  }
 }
 
 async function refreshEditAmount() {
@@ -473,7 +506,14 @@ async function refreshEditAmount() {
 
 function onKeydown(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return
-  if (saveTplTx.value || deleteTargetId.value !== null) return
+  if (saveTplTx.value) return
+  if (deleteTargetId.value !== null) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      deleteTargetId.value = null
+    }
+    return
+  }
 
   if (e.key === 'Escape') {
     if (splitBtn.value?.isOpen()) {
@@ -492,7 +532,22 @@ function onKeydown(e: KeyboardEvent) {
 
   // Page-level shortcuts are suppressed while typing in a field or when a modal is up
   if (keyboardBusy.value || isTextEntry(e.target)) return
-  if (e.key.toLowerCase() === 't') {
+  // The template menu handles its own arrow keys
+  if (splitBtn.value?.isOpen()) return
+
+  const key = e.key.toLowerCase()
+  const noRowEditing = !editingNewRow.value && editingId.value === null
+  const focusedTx = rows.value.find(tx => tx.id === focusedId.value)
+  if (noRowEditing && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault()
+    moveRowFocus(e.key === 'ArrowDown' ? 1 : -1)
+  } else if (noRowEditing && key === 'e' && focusedTx) {
+    e.preventDefault()
+    startEdit(focusedTx, true)
+  } else if (noRowEditing && key === 'd' && focusedTx) {
+    e.preventDefault()
+    confirmDelete(focusedTx.id)
+  } else if (key === 't') {
     e.preventDefault()
     splitBtn.value?.openMenu()
   }
@@ -610,6 +665,12 @@ watch(
   padding: 5px 8px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+}
+
+/* Keyboard row focus: same ring as the grid's focused cell */
+tr.row-focused {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 tr.editing td {
