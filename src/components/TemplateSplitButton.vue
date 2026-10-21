@@ -1,6 +1,6 @@
 <template>
   <div class="split" ref="rootEl">
-    <button class="btn split-main" :disabled="disabled" @click="$emit('add')">{{ label }}</button>
+    <button ref="mainBtn" class="btn split-main" :disabled="disabled" @click="$emit('add')">{{ label }}</button>
     <button
       class="btn split-arrow"
       :class="{ open }"
@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<{
 
 const open = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
+const mainBtn = ref<HTMLButtonElement | null>(null)
 const menuStyle = ref<Record<string, string>>({})
 
 async function openMenu() {
@@ -92,7 +93,7 @@ function onDocMousedown(e: MouseEvent) {
 onMounted(() => document.addEventListener('mousedown', onDocMousedown))
 onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 
-defineExpose({ openMenu, closeMenu, isOpen: () => open.value })
+defineExpose({ openMenu, closeMenu, isOpen: () => open.value, focus: () => mainBtn.value?.focus() })
 </script>
 
 <style scoped>

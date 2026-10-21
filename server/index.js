@@ -229,9 +229,10 @@ app.get('/api/archives', (req, res) => {
   res.json(files)
 })
 
-// Serve built frontend in production
+// Serve the built frontend in production (NODE_ENV=production, after `npm run build`).
+// Must stay after every /api route so the catch-all below never shadows them.
 const distPath = path.join(__dirname, '../dist')
-if (fs.existsSync(distPath)) {
+if (process.env.NODE_ENV === 'production') {
   app.use(express.static(distPath))
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'))

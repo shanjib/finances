@@ -62,6 +62,14 @@ const groups = [
       { keys: 'Esc', desc: 'Blank row: discard it. Row with content: save / validate. Otherwise close the popup' },
     ],
   },
+  {
+    title: 'Popup row (popup or Transaction Log)',
+    rows: [
+      { keys: '↑ ↓', desc: 'Move between transaction rows (no row being edited)' },
+      { keys: 'E', desc: 'Edit the focused row' },
+      { keys: 'D', desc: 'Delete the focused row (asks to confirm; Enter confirms, Esc cancels)' },
+    ],
+  },
 ]
 </script>
 
